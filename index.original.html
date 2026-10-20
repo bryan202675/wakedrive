@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WakeDrive | Monitoreo de Atención</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            surface: {
+              DEFAULT: '#09090b',
+              subtle: '#111215',
+              card: '#16181d',
+              border: '#23262f',
+              borderLight: '#2e323d'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #09090b;
+      color: #e4e4e7;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    @keyframes zzz-fade {
+      0% { opacity: 0; transform: translateY(0) scale(0.7); }
+      40% { opacity: 0.8; }
+      100% { opacity: 0; transform: translateY(-30px) translateX(18px) scale(1.1); }
+    }
+    .zzz-item { animation: zzz-fade 2.4s infinite ease-out; }
+    .zzz-2 { animation-delay: 0.8s; }
+    .zzz-3 { animation-delay: 1.6s; }
+
+    /* Minimalist Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #09090b; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+  </style>
+</head>
+<body class="bg-surface text-zinc-200 min-h-screen flex flex-col antialiased selection:bg-zinc-700 selection:text-white">
+
+  <!-- MINIMALIST NAVIGATION (SOFTENED & STREAMLINED) -->
+  <nav class="border-b border-surface-border bg-surface/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      
+      <!-- Brand & Status -->
+      <div class="flex items-center space-x-3">
+        <div class="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-200">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <circle cx="12" cy="12" r="2.5"/>
+            <path d="M12 14.5v6.5"/>
+            <path d="M3.5 12h6"/>
+            <path d="M14.5 12h6"/>
+          </svg>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-sm font-semibold tracking-tight text-zinc-100">WakeDrive</span>
+          <span class="text-[11px] text-zinc-500 font-mono">telemetría</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center space-x-2">
+        <!-- Audio Alarm Toggle -->
+        <button id="btnSoundToggle" title="Alarma sonora del navegador" class="p-1.5 rounded-lg border border-surface-border bg-surface-subtle text-zinc-400 hover:text-zinc-200 hover:border-surface-borderLight transition">
+          <svg id="iconSoundOn" class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          </svg>
+          <svg id="iconSoundOff" class="w-4 h-4 text-zinc-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+          </svg>
+        </button>
+
+        <!-- Simulation Mode Toggle -->
+        <button id="btnSimMode" class="text-xs px-2.5 py-1.5 rounded-lg border border-surface-border bg-surface-subtle text-zinc-400 hover:text-zinc-200 hover:border-surface-borderLight transition flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-zinc-600" id="simDot"></span>
+          <span>Simulador</span>
+        </button>
+
+        <!-- Connect Serial Button (Minimalist Monochromatic) -->
+        <button id="btnConnect" class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-xs transition shadow-sm flex items-center space-x-1.5">
+          <svg class="w-3.5 h-3.5 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span id="btnConnectText">Conectar Arduino</span>
+        </button>
+      </div>
+
+    </div>
+  </nav>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-5">
+
+    <!-- SUBTLE MINIMALIST ALERT CARD (Revealed when asleep) -->
+    <div id="alertBanner" class="hidden rounded-xl bg-red-950/25 border border-red-900/50 p-4 text-red-200 transition-all duration-200">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-red-900/30 border border-red-700/40 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold tracking-tight text-red-300">Somnolencia detectada</h2>
+            <p class="text-xs text-red-300/70 font-normal">Inclinación sostenida por más de 1.5 s. Alerta sonora y vibración activas en Pin 9.</p>
+          </div>
+        </div>
+        <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800/40">
+          Buzzer + Motor ON
+        </span>
+      </div>
+    </div>
+
+    <!-- PRIMARY DASHBOARD GRID -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+      <!-- LEFT: MINIMAL POSTURE VISUALIZER (5 cols) -->
+      <div class="lg:col-span-5 bg-surface-card border border-surface-border rounded-xl p-5 flex flex-col justify-between">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-surface-border">
+          <span class="text-xs font-medium text-zinc-400">Postura del Conductor</span>
+          <!-- Status pill -->
+          <span id="badgeEstado" class="px-2.5 py-0.5 rounded-md text-[11px] font-medium tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Erguido / Atento
+          </span>
+        </div>
+
+        <!-- Central Graphic: Minimalist Driver Avatar -->
+        <div class="py-6 flex flex-col items-center justify-center relative min-h-[240px]">
+          
+          <!-- Zzz Animations when asleep -->
+          <div id="zzzContainer" class="hidden absolute top-4 right-14 pointer-events-none text-zinc-500 font-mono text-lg font-medium">
+            <span class="zzz-item inline-block">z</span>
+            <span class="zzz-item zzz-2 inline-block -ml-1 text-base">z</span>
+            <span class="zzz-item zzz-3 inline-block -ml-1 text-xs">z</span>
+          </div>
+
+          <!-- SVG Head & Cockpit (Clean Line Art) -->
+          <div class="relative flex flex-col items-center">
+            
+            <!-- Driver Head (Clean Muted Line Stroke) -->
+            <div id="headAvatar" class="transition-transform duration-300 ease-out origin-[100px_140px]" style="transform: rotate(0deg);">
+              <svg class="w-44 h-44" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Shoulders (Minimal line) -->
+                <path d="M42 180C42 152 70 142 100 142C130 142 158 152 158 180" stroke="#3f3f46" stroke-width="3" stroke-linecap="round"/>
+                <!-- Neck -->
+                <path d="M94 124V142M106 124V142" stroke="#27272a" stroke-width="3" stroke-linecap="round"/>
+                
+                <!-- Head Contour -->
+                <ellipse id="avatarHead" cx="100" cy="84" rx="42" ry="46" fill="#18181b" stroke="#52525b" stroke-width="2"/>
+                
+                <!-- Driver Cap / Minimal Brim -->
+                <path d="M64 68C68 56 82 50 100 50C118 50 132 56 136 68L158 74L136 78C124 78 76 78 64 78Z" fill="#27272a" stroke="#3f3f46" stroke-width="1.5"/>
+
+                <!-- EYES (Normal Awake: Clean minimal dots) -->
+                <g id="eyesAwake">
+                  <circle cx="86" cy="85" r="3.5" fill="#e4e4e7" />
+                  <circle cx="114" cy="85" r="3.5" fill="#e4e4e7" />
+                </g>
+
+                <!-- EYES (Drowsy / Inclinado) -->
+                <g id="eyesDrowsy" class="hidden">
+                  <path d="M81 87C85 82 91 82 95 87" stroke="#eab308" stroke-width="2.5" stroke-linecap="round" />
+                  <path d="M109 87C113 82 119 82 123 87" stroke="#eab308" stroke-width="2.5" stroke-linecap="round" />
+                </g>
+
+                <!-- EYES (Asleep X_X) -->
+                <g id="eyesSleeping" class="hidden">
+                  <path d="M81 81L91 91M91 81L81 91" stroke="#f87171" stroke-width="2" stroke-linecap="round" />
+                  <path d="M109 81L119 91M119 81L109 91" stroke="#f87171" stroke-width="2" stroke-linecap="round" />
+                </g>
+
+                <!-- Mouth -->
+                <path id="avatarMouth" d="M94 108C98 110 102 110 106 108" stroke="#52525b" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <!-- Subtle Steering Wheel Arc -->
+            <div class="-mt-12 z-10 pointer-events-none opacity-80">
+              <svg class="w-28 h-14" viewBox="0 0 120 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 50C14 26 34 12 60 12C86 12 106 26 106 50" stroke="#3f3f46" stroke-width="3.5" stroke-linecap="round"/>
+                <circle cx="60" cy="38" r="5" fill="#27272a" stroke="#52525b" stroke-width="1.5"/>
+              </svg>
+            </div>
+
+          </div>
+
+          <!-- Posture degree caption -->
+          <div class="mt-2 text-center">
+            <span id="labelTiltAngle" class="text-xs font-mono text-zinc-400 bg-surface-subtle px-2.5 py-1 rounded-md border border-surface-border">
+              Ángulo: 0° (Normal)
+            </span>
+          </div>
+
+        </div>
+
+        <!-- Confirmation Progress Bar (Thin & Minimal) -->
+        <div class="space-y-1.5 pt-3 border-t border-surface-border">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-zinc-500 font-normal">Ventana de confirmación</span>
+            <span id="txtConfirmationProgress" class="font-mono text-zinc-400 tabular-nums">0%</span>
+          </div>
+          <div class="w-full bg-surface-subtle h-1.5 rounded-full overflow-hidden border border-surface-border">
+            <div id="barConfirmation" class="h-full bg-zinc-300 rounded-full transition-all duration-100 ease-linear" style="width: 0%"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: METRICS, STATS & HARDWARE (7 cols) -->
+      <div class="lg:col-span-7 space-y-5">
+
+        <!-- 4 KPI CARDS: MINIMALIST FLAT -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          
+          <!-- KPI 1: Sensor Crudo -->
+          <div class="bg-surface-card border border-surface-border rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-zinc-500 mb-1.5">
+              <span class="text-[11px] font-medium uppercase tracking-wider">Sensor D0</span>
+              <span class="text-[10px] font-mono text-zinc-600">Pin 10</span>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span id="metricRaw" class="text-xl font-semibold font-mono text-zinc-200 tabular-nums">1</span>
+              <span id="metricRawText" class="text-[11px] text-zinc-500 font-mono">HIGH</span>
+            </div>
+            <div class="mt-1 text-[11px] text-zinc-500 truncate" id="metricRawDesc">Erguido</div>
+          </div>
+
+          <!-- KPI 2: Estado Filtrado -->
+          <div class="bg-surface-card border border-surface-border rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-zinc-500 mb-1.5">
+              <span class="text-[11px] font-medium uppercase tracking-wider">Filtro</span>
+              <span class="text-[10px] font-mono text-zinc-600">300ms</span>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span id="metricFiltered" class="text-sm font-semibold tracking-tight text-emerald-400 truncate">ERGUIDO</span>
+            </div>
+            <div class="mt-1 text-[11px] text-zinc-500 truncate">Anti-rebote ok</div>
+          </div>
+
+          <!-- KPI 3: Alertas / Cabeceos Totales -->
+          <div class="bg-surface-card border border-surface-border rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-zinc-500 mb-1.5">
+              <span class="text-[11px] font-medium uppercase tracking-wider">Cabeceos</span>
+              <span class="text-[10px] text-zinc-600">Total</span>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span id="metricAlertCount" class="text-xl font-semibold font-mono text-zinc-200 tabular-nums">0</span>
+              <span class="text-[11px] text-zinc-500">alertas</span>
+            </div>
+            <div class="mt-1 text-[11px] text-zinc-500 truncate">Eventos críticos</div>
+          </div>
+
+          <!-- KPI 4: Tiempo de Conducción / Sesión -->
+          <div class="bg-surface-card border border-surface-border rounded-xl p-3.5">
+            <div class="flex items-center justify-between text-zinc-500 mb-1.5">
+              <span class="text-[11px] font-medium uppercase tracking-wider">Sesión</span>
+              <span class="text-[10px] text-zinc-600">Activa</span>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span id="metricSessionTime" class="text-sm font-semibold font-mono text-zinc-300 tabular-nums">00:00:00</span>
+            </div>
+            <div class="mt-1 text-[11px] text-zinc-500 truncate">Tiempo en marcha</div>
+          </div>
+
+        </div>
+
+        <!-- REAL-TIME TELEMETRY GRAPH (CLEAN OSCILLOSCOPE) -->
+        <div class="bg-surface-card border border-surface-border rounded-xl p-4">
+          <div class="flex items-center justify-between mb-2.5">
+            <div>
+              <h4 class="text-xs font-semibold text-zinc-300">Señal de Inclinación en Vivo</h4>
+            </div>
+            <div class="flex items-center space-x-3 text-[11px] font-mono text-zinc-500">
+              <span class="flex items-center gap-1.5 text-zinc-400">
+                <span class="w-2 h-0.5 bg-zinc-400 inline-block"></span> Crudo (D0)
+              </span>
+              <span class="flex items-center gap-1.5 text-emerald-400">
+                <span class="w-2 h-0.5 bg-emerald-400 inline-block"></span> Filtrado
+              </span>
+            </div>
+          </div>
+          <!-- Canvas Graph Container -->
+          <div class="relative w-full h-36 bg-surface-subtle rounded-lg overflow-hidden border border-surface-border">
+            <canvas id="telemetryCanvas" class="w-full h-full block"></canvas>
+          </div>
+        </div>
+
+        <!-- SIMULATION CONTROLS (Displayed when Sim Mode is active) -->
+        <div id="simPanel" class="hidden bg-surface-card border border-surface-border rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-zinc-400 font-medium">Controles de prueba sin hardware:</span>
+            <button id="btnResetStats" class="text-zinc-500 hover:text-zinc-300 transition text-[11px]">Reiniciar contadores</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button id="btnSimErguido" class="px-2.5 py-1.5 rounded-lg bg-surface-subtle hover:bg-zinc-800 border border-surface-border text-zinc-300 text-xs font-medium transition">
+              Erguido
+            </button>
+            <button id="btnSimInclinado" class="px-2.5 py-1.5 rounded-lg bg-surface-subtle hover:bg-zinc-800 border border-surface-border text-zinc-300 text-xs font-medium transition">
+              Inclinado (evaluando)
+            </button>
+            <button id="btnSimAlerta" class="px-2.5 py-1.5 rounded-lg bg-surface-subtle hover:bg-zinc-800 border border-surface-border text-red-300 text-xs font-medium transition">
+              Alerta (1.5s+)
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- LOWER SECTION: EVENT HISTORY LOG & SERIAL RAW CONSOLE -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+      <!-- EVENT LOG TABLE (7 cols) -->
+      <div class="lg:col-span-7 bg-surface-card border border-surface-border rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h4 class="text-xs font-semibold text-zinc-300">Historial de Eventos</h4>
+            </div>
+            <button id="btnExportCSV" class="text-xs px-2.5 py-1 rounded-lg border border-surface-border bg-surface-subtle hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition flex items-center gap-1 font-normal">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Exportar CSV</span>
+            </button>
+          </div>
+
+          <!-- Table Container -->
+          <div class="overflow-x-auto max-h-44 rounded-lg border border-surface-border">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-surface-subtle text-zinc-500 font-mono border-b border-surface-border">
+                <tr>
+                  <th class="py-2 px-3 font-medium">Hora</th>
+                  <th class="py-2 px-3 font-medium">Evento</th>
+                  <th class="py-2 px-3 font-medium">Duración</th>
+                  <th class="py-2 px-3 font-medium text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tblEventsBody" class="divide-y divide-surface-border font-normal">
+                <tr class="text-zinc-600 text-center py-5">
+                  <td colspan="4" class="py-5">Sin incidentes registrados. Conductor atento.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-surface-border flex items-center justify-between text-[11px] text-zinc-500">
+          <span id="logSummaryText">0 incidentes</span>
+          <button id="btnClearLog" class="hover:text-zinc-300 transition">Limpiar</button>
+        </div>
+      </div>
+
+      <!-- RAW SERIAL TERMINAL (5 cols) -->
+      <div class="lg:col-span-5 bg-surface-card border border-surface-border rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-semibold text-zinc-300">Terminal Serie (9600 baud)</h4>
+            <button id="btnClearTerminal" class="text-[11px] px-2 py-0.5 rounded border border-surface-border bg-surface-subtle text-zinc-500 hover:text-zinc-300 transition">Limpiar</button>
+          </div>
+          <!-- Terminal Box -->
+          <div id="terminalOutput" class="w-full h-40 bg-surface-subtle border border-surface-border rounded-lg p-2.5 font-mono text-[11px] text-zinc-400 overflow-y-auto space-y-0.5 leading-relaxed selection:bg-zinc-800">
+            <div class="text-zinc-600">// Puerto en espera.</div>
+            <div class="text-zinc-600">// Haz clic en "Conectar Arduino" y elige tu puerto COM.</div>
+          </div>
+        </div>
+        <div class="mt-2 text-[10px] text-zinc-600 flex justify-between items-center font-mono">
+          <span>Crudo: [0|1] Filtrado: [INCLINADO|ERGUIDO]</span>
+          <span id="terminalBytes">0 líneas</span>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    // --- WAKEDRIVE STATE MANAGEMENT ---
+    const state = {
+      connected: false,
+      isSimulating: false,
+      soundEnabled: true,
+      rawReading: 0,
+      filteredStatus: 'ERGUIDO', // 'ERGUIDO' | 'INCLINADO'
+      isAlertActive: false,
+      tiltStartTime: null,
+      alertCount: 0,
+      sessionStartTime: Date.now(),
+      events: [],
+      dataPoints: [], // For telemetry canvas
+      maxDataPoints: 120,
+      port: null,
+      reader: null,
+      lineBuffer: '',
+      confirmationMs: 1500
+    };
+
+    // --- DOM REFERENCES ---
+    const btnConnect = document.getElementById('btnConnect');
+    const btnConnectText = document.getElementById('btnConnectText');
+    const btnSoundToggle = document.getElementById('btnSoundToggle');
+    const iconSoundOn = document.getElementById('iconSoundOn');
+    const iconSoundOff = document.getElementById('iconSoundOff');
+    const btnSimMode = document.getElementById('btnSimMode');
+    const simDot = document.getElementById('simDot');
+    const simPanel = document.getElementById('simPanel');
+
+    // Avatar & Graphic elements
+    const headAvatar = document.getElementById('headAvatar');
+    const eyesAwake = document.getElementById('eyesAwake');
+    const eyesDrowsy = document.getElementById('eyesDrowsy');
+    const eyesSleeping = document.getElementById('eyesSleeping');
+    const zzzContainer = document.getElementById('zzzContainer');
+    const labelTiltAngle = document.getElementById('labelTiltAngle');
+    const badgeEstado = document.getElementById('badgeEstado');
+    const alertBanner = document.getElementById('alertBanner');
+    const barConfirmation = document.getElementById('barConfirmation');
+    const txtConfirmationProgress = document.getElementById('txtConfirmationProgress');
+
+    // Metric elements
+    const metricRaw = document.getElementById('metricRaw');
+    const metricRawText = document.getElementById('metricRawText');
+    const metricRawDesc = document.getElementById('metricRawDesc');
+    const metricFiltered = document.getElementById('metricFiltered');
+    const metricAlertCount = document.getElementById('metricAlertCount');
+    const metricSessionTime = document.getElementById('metricSessionTime');
+
+    // Telemetry Canvas
+    const canvas = document.getElementById('telemetryCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Terminal & Logs
+    const terminalOutput = document.getElementById('terminalOutput');
+    const terminalBytes = document.getElementById('terminalBytes');
+    const tblEventsBody = document.getElementById('tblEventsBody');
+    const logSummaryText = document.getElementById('logSummaryText');
+    const btnExportCSV = document.getElementById('btnExportCSV');
+    const btnClearLog = document.getElementById('btnClearLog');
+    const btnClearTerminal = document.getElementById('btnClearTerminal');
+
+    // Sim Buttons
+    const btnSimErguido = document.getElementById('btnSimErguido');
+    const btnSimInclinado = document.getElementById('btnSimInclinado');
+    const btnSimAlerta = document.getElementById('btnSimAlerta');
+    const btnResetStats = document.getElementById('btnResetStats');
+
+    // --- WEB AUDIO API SYNTHESIZER (MUTED MINIMAL TONE) ---
+    let audioCtx = null;
+    let alarmInterval = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playBeep(freq = 780, duration = 0.12) {
+      if (!state.soundEnabled) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine'; // Soft sine wave instead of harsh sawtooth
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (err) {
+        console.warn('Audio error:', err);
+      }
+    }
+
+    function startAlarmLoop() {
+      if (alarmInterval) return;
+      playBeep(840, 0.14);
+      alarmInterval = setInterval(() => {
+        playBeep(840, 0.14);
+      }, 260);
+    }
+
+    function stopAlarmLoop() {
+      if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+      }
+    }
+
+    // Sound toggle button
+    btnSoundToggle.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      if (state.soundEnabled) {
+        iconSoundOn.classList.remove('hidden');
+        iconSoundOff.classList.add('hidden');
+        playBeep(520, 0.08);
+      } else {
+        iconSoundOn.classList.add('hidden');
+        iconSoundOff.classList.remove('hidden');
+        stopAlarmLoop();
+      }
+    });
+
+    // --- CANVAS TELEMETRY RENDERER (MINIMALIST MONOCHROME + ACCENT) ---
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawTelemetry() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Subtle horizontal baseline
+      ctx.strokeStyle = '#23262f';
+      ctx.lineWidth = 1;
+      for (let y = 20; y < h; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      if (state.dataPoints.length === 0) return;
+
+      const step = w / (state.maxDataPoints - 1);
+
+      // Render Alert Zone background (Minimal soft red wash)
+      for (let i = 0; i < state.dataPoints.length; i++) {
+        if (state.dataPoints[i].alert) {
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+          ctx.fillRect(i * step, 0, step + 1, h);
+        }
+      }
+
+      // Render RAW signal line (Muted Zinc line)
+      ctx.beginPath();
+      ctx.strokeStyle = '#71717a';
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < state.dataPoints.length; i++) {
+        const val = state.dataPoints[i].raw; // 0 or 1
+        const y = val === 1 ? h * 0.75 : h * 0.35;
+        if (i === 0) ctx.moveTo(0, y);
+        else ctx.lineTo(i * step, y);
+      }
+      ctx.stroke();
+
+      // Render FILTERED signal line (Emerald or Red)
+      ctx.beginPath();
+      ctx.strokeStyle = state.isAlertActive ? '#f87171' : '#34d399';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < state.dataPoints.length; i++) {
+        const val = state.dataPoints[i].filtered === 'ERGUIDO' ? 1 : 0;
+        const y = val === 1 ? h * 0.8 : h * 0.25;
+        if (i === 0) ctx.moveTo(0, y);
+        else ctx.lineTo(i * step, y);
+      }
+      ctx.stroke();
+    }
+
+    // --- UI UPDATER BASED ON STATE ---
+    let incidentActive = false;
+    let incidentStartTime = 0;
+
+    function updateDashboardUI() {
+      // 1. Raw Metric
+      metricRaw.textContent = state.rawReading;
+      metricRawText.textContent = state.rawReading === 1 ? 'HIGH' : 'LOW';
+      metricRawDesc.textContent = state.rawReading === 0 ? 'Lectura Activa / Inclinado' : 'Lectura Reposo / Erguido';
+
+      // 2. Filtered Metric
+      metricFiltered.textContent = state.filteredStatus;
+      if (state.filteredStatus === 'ERGUIDO') {
+        metricFiltered.className = 'text-sm font-semibold tracking-tight text-emerald-400 truncate';
+      } else {
+        metricFiltered.className = 'text-sm font-semibold tracking-tight text-amber-400 truncate';
+      }
+
+      // 3. Evaluate Confirmation Progress (1500 ms)
+      let progressPercent = 0;
+      if (state.filteredStatus === 'INCLINADO' && state.tiltStartTime) {
+        const elapsed = Date.now() - state.tiltStartTime;
+        progressPercent = Math.min(100, Math.round((elapsed / state.confirmationMs) * 100));
+        
+        if (elapsed >= state.confirmationMs) {
+          state.isAlertActive = true;
+        }
+      } else {
+        progressPercent = 0;
+        state.isAlertActive = false;
+      }
+
+      barConfirmation.style.width = progressPercent + '%';
+      txtConfirmationProgress.textContent = progressPercent + '%';
+
+      // 4. Update Avatar and Warning states
+      if (state.isAlertActive) {
+        // Critical Sleep Alert
+        headAvatar.style.transform = 'rotate(-34deg) translateY(8px)';
+        eyesAwake.classList.add('hidden');
+        eyesDrowsy.classList.add('hidden');
+        eyesSleeping.classList.remove('hidden');
+        zzzContainer.classList.remove('hidden');
+        alertBanner.classList.remove('hidden');
+
+        badgeEstado.className = 'px-2.5 py-0.5 rounded-md text-[11px] font-medium tracking-wide bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1.5';
+        badgeEstado.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Somnolencia detectada';
+        labelTiltAngle.textContent = 'Ángulo: -34° (Cabeceo crítico)';
+        labelTiltAngle.className = 'text-xs font-mono text-red-400 bg-red-950/20 px-2.5 py-1 rounded-md border border-red-900/40';
+
+        startAlarmLoop();
+
+        // Register incident if just started
+        if (!incidentActive) {
+          incidentActive = true;
+          incidentStartTime = Date.now();
+          state.alertCount++;
+          metricAlertCount.textContent = state.alertCount;
+          addEventLog('Somnolencia', 'Alerta Activa', 'Buzzer + Motor');
+        }
+
+      } else if (state.filteredStatus === 'INCLINADO') {
+        // Tilt detected but confirming (drowsiness phase)
+        headAvatar.style.transform = 'rotate(-16deg) translateY(3px)';
+        eyesAwake.classList.add('hidden');
+        eyesDrowsy.classList.remove('hidden');
+        eyesSleeping.classList.add('hidden');
+        zzzContainer.classList.add('hidden');
+        alertBanner.classList.add('hidden');
+
+        badgeEstado.className = 'px-2.5 py-0.5 rounded-md text-[11px] font-medium tracking-wide bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center gap-1.5';
+        badgeEstado.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Inclinado (evaluando)';
+        labelTiltAngle.textContent = 'Ángulo: -16° (Evaluando 1.5s)';
+        labelTiltAngle.className = 'text-xs font-mono text-amber-300 bg-amber-950/20 px-2.5 py-1 rounded-md border border-amber-900/40';
+
+        stopAlarmLoop();
+
+      } else {
+        // Upright & Awake
+        headAvatar.style.transform = 'rotate(0deg)';
+        eyesAwake.classList.remove('hidden');
+        eyesDrowsy.classList.add('hidden');
+        eyesSleeping.classList.add('hidden');
+        zzzContainer.classList.add('hidden');
+        alertBanner.classList.add('hidden');
+
+        badgeEstado.className = 'px-2.5 py-0.5 rounded-md text-[11px] font-medium tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5';
+        badgeEstado.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Erguido / Atento';
+        labelTiltAngle.textContent = 'Ángulo: 0° (Normal)';
+        labelTiltAngle.className = 'text-xs font-mono text-zinc-400 bg-surface-subtle px-2.5 py-1 rounded-md border border-surface-border';
+
+        stopAlarmLoop();
+
+        // If an incident was active and driver woke up:
+        if (incidentActive) {
+          const durationSec = ((Date.now() - incidentStartTime) / 1000).toFixed(1);
+          addEventLog('Reincorporación', `${durationSec} s`, 'Conductor Alerta');
+          incidentActive = false;
+        }
+      }
+
+      // Record point in telemetry queue
+      state.dataPoints.push({
+        raw: state.rawReading,
+        filtered: state.filteredStatus,
+        alert: state.isAlertActive
+      });
+      if (state.dataPoints.length > state.maxDataPoints) {
+        state.dataPoints.shift();
+      }
+
+      drawTelemetry();
+    }
+
+    // --- PARSER FOR ARDUINO SERIAL STREAM ---
+    const regexSerialLine = /Crudo:\s*([01])\s+Filtrado:\s*(INCLINADO|ERGUIDO)/i;
+
+    function processArduinoLine(line) {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      appendTerminalLine(trimmed);
+
+      const match = trimmed.match(regexSerialLine);
+      if (match) {
+        const raw = parseInt(match[1], 10);
+        const filtered = match[2].toUpperCase();
+
+        if (filtered === 'INCLINADO' && state.filteredStatus !== 'INCLINADO') {
+          state.tiltStartTime = Date.now();
+        } else if (filtered === 'ERGUIDO') {
+          state.tiltStartTime = null;
+        }
+
+        state.rawReading = raw;
+        state.filteredStatus = filtered;
+        updateDashboardUI();
+      }
+    }
+
+    // --- TERMINAL LOGGING ---
+    let terminalLineCount = 0;
+    function appendTerminalLine(text) {
+      terminalLineCount++;
+      const div = document.createElement('div');
+      div.textContent = `> ${text}`;
+      terminalOutput.appendChild(div);
+
+      terminalOutput.scrollTop = terminalOutput.scrollHeight;
+
+      if (terminalOutput.children.length > 150) {
+        terminalOutput.removeChild(terminalOutput.children[0]);
+      }
+      terminalBytes.textContent = `${terminalLineCount} líneas`;
+    }
+
+    btnClearTerminal.addEventListener('click', () => {
+      terminalOutput.innerHTML = '';
+      terminalLineCount = 0;
+      terminalBytes.textContent = '0 líneas';
+    });
+
+    // --- EVENT LOG TABLE & CSV EXPORT ---
+    function addEventLog(event, duration, action) {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const newEntry = { time: timeStr, event, duration, action };
+      state.events.unshift(newEntry);
+
+      renderEventsTable();
+    }
+
+    function renderEventsTable() {
+      if (state.events.length === 0) {
+        tblEventsBody.innerHTML = `
+          <tr class="text-zinc-600 text-center py-5">
+            <td colspan="4" class="py-5">Sin incidentes registrados. Conductor atento.</td>
+          </tr>
+        `;
+        logSummaryText.textContent = '0 incidentes';
+        return;
+      }
+
+      tblEventsBody.innerHTML = state.events.slice(0, 50).map(ev => {
+        const isAlert = ev.event.includes('Somnolencia');
+        const badgeColor = isAlert 
+          ? 'text-red-400 bg-red-500/10 border-red-500/20' 
+          : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+        return `
+          <tr class="hover:bg-zinc-800/30 transition">
+            <td class="py-2 px-3 font-mono text-zinc-400 tabular-nums">${ev.time}</td>
+            <td class="py-2 px-3"><span class="px-2 py-0.5 rounded text-[11px] font-medium border ${badgeColor}">${ev.event}</span></td>
+            <td class="py-2 px-3 font-mono text-zinc-300 tabular-nums">${ev.duration}</td>
+            <td class="py-2 px-3 text-right text-zinc-400">${ev.action}</td>
+          </tr>
+        `;
+      }).join('');
+
+      logSummaryText.textContent = `${state.events.length} incidentes registrados`;
+    }
+
+    btnClearLog.addEventListener('click', () => {
+      state.events = [];
+      renderEventsTable();
+    });
+
+    btnExportCSV.addEventListener('click', () => {
+      if (state.events.length === 0) {
+        alert('No hay incidentes para exportar.');
+        return;
+      }
+      let csvContent = "data:text/csv;charset=utf-8,Hora,Evento,Duracion,Accion\n";
+      state.events.forEach(ev => {
+        csvContent += `"${ev.time}","${ev.event}","${ev.duration}","${ev.action}"\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `wakedrive_registro_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // --- SESSION TIMER CLOCK ---
+    setInterval(() => {
+      const elapsedMs = Date.now() - state.sessionStartTime;
+      const totalSec = Math.floor(elapsedMs / 1000);
+      const hours = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+      const minutes = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+      const seconds = String(totalSec % 60).padStart(2, '0');
+      metricSessionTime.textContent = `${hours}:${minutes}:${seconds}`;
+
+      if (state.filteredStatus === 'INCLINADO') {
+        updateDashboardUI();
+      }
+    }, 100);
+
+    // --- WEB SERIAL API CONNECTION ---
+    async function connectSerial() {
+      initAudio();
+
+      if (!("serial" in navigator)) {
+        alert("La Web Serial API no está disponible en este navegador.\n\nAbre WakeDrive en Google Chrome o Microsoft Edge.");
+        return;
+      }
+
+      try {
+        state.port = await navigator.serial.requestPort();
+        await state.port.open({ baudRate: 9600 });
+
+        state.connected = true;
+        btnConnect.className = 'px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium text-xs transition flex items-center space-x-1.5';
+        btnConnectText.textContent = 'Conectado';
+        appendTerminalLine('--- Conectado por puerto COM (9600 baud) ---');
+
+        readSerialLoop();
+      } catch (err) {
+        console.error('Error al conectar puerto serial:', err);
+        appendTerminalLine(`Error: ${err.message}`);
+      }
+    }
+
+    async function disconnectSerial() {
+      if (state.reader) {
+        await state.reader.cancel();
+      }
+      if (state.port) {
+        await state.port.close();
+      }
+      state.connected = false;
+      state.port = null;
+      btnConnect.className = 'px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-xs transition shadow-sm flex items-center space-x-1.5';
+      btnConnectText.textContent = 'Conectar Arduino';
+      appendTerminalLine('--- Puerto COM cerrado ---');
+    }
+
+    async function readSerialLoop() {
+      const textDecoder = new TextDecoderStream();
+      const readableStreamClosed = state.port.readable.pipeTo(textDecoder.writable);
+      state.reader = textDecoder.readable.getReader();
+
+      try {
+        while (true) {
+          const { value, done } = await state.reader.read();
+          if (done) break;
+          if (value) {
+            state.lineBuffer += value;
+            const lines = state.lineBuffer.split('\n');
+            state.lineBuffer = lines.pop();
+            for (const line of lines) {
+              processArduinoLine(line);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error serial:', err);
+        appendTerminalLine(`Desconexión: ${err.message}`);
+      } finally {
+        state.reader.releaseLock();
+      }
+    }
+
+    btnConnect.addEventListener('click', () => {
+      if (state.connected) {
+        disconnectSerial();
+      } else {
+        connectSerial();
+      }
+    });
+
+    // --- SIMULATION MODE ---
+    btnSimMode.addEventListener('click', () => {
+      initAudio();
+      state.isSimulating = !state.isSimulating;
+      if (state.isSimulating) {
+        simPanel.classList.remove('hidden');
+        simDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+        btnSimMode.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-200 transition flex items-center gap-1.5';
+        appendTerminalLine('// Modo Simulación activado.');
+      } else {
+        simPanel.classList.add('hidden');
+        simDot.className = 'w-1.5 h-1.5 rounded-full bg-zinc-600';
+        btnSimMode.className = 'text-xs px-2.5 py-1.5 rounded-lg border border-surface-border bg-surface-subtle text-zinc-400 hover:text-zinc-200 hover:border-surface-borderLight transition flex items-center gap-1.5';
+      }
+    });
+
+    btnSimErguido.addEventListener('click', () => {
+      processArduinoLine('Crudo: 1   Filtrado: ERGUIDO');
+    });
+
+    btnSimInclinado.addEventListener('click', () => {
+      processArduinoLine('Crudo: 0   Filtrado: INCLINADO');
+    });
+
+    btnSimAlerta.addEventListener('click', () => {
+      state.tiltStartTime = Date.now() - 1600;
+      processArduinoLine('Crudo: 0   Filtrado: INCLINADO');
+    });
+
+    btnResetStats.addEventListener('click', () => {
+      state.alertCount = 0;
+      metricAlertCount.textContent = '0';
+      state.events = [];
+      renderEventsTable();
+      state.sessionStartTime = Date.now();
+    });
+
+    // Start with default dashboard render
+    updateDashboardUI();
+
+  </script>
+</body>
+</html>
