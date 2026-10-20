@@ -25,78 +25,82 @@ export const TerminalLog: React.FC<TerminalLogProps> = ({ lines, onClear }) => {
   };
 
   return (
-    <div className="squircle-card p-4 shadow-card flex flex-col justify-between h-[260px]">
+    <div className="squircle-card p-5 shadow-card flex flex-col justify-between h-[260px]">
       {/* Header */}
-      <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/5 dark:border-white/10 shrink-0">
+      <div className="flex items-center justify-between pb-3 mb-2 border-b border-black/[0.06] dark:border-white/[0.06] shrink-0">
         <div className="flex items-center gap-2">
-          <Terminal className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
-          <span className="text-xs font-mono font-bold tracking-wider uppercase text-slate-800 dark:text-slate-200">
-            Monitor Serie COM &bull; 9600 Baud
+          <Terminal className="w-4 h-4 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} />
+          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Monitor Serie COM
           </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 tabular-nums">
-            {lines.length} líneas
+          <span className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500 tabular-nums">
+            9600 Baud ({lines.length})
           </span>
         </div>
 
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`p-1.5 rounded-lg text-xs font-mono transition active:scale-95 focus:ring-1 focus:ring-slate-400 focus:outline-none ${
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all active:scale-95 ${
               autoScroll
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-black'
-                : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm'
+                : 'text-zinc-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
             }`}
             title="Desplazamiento automático"
             aria-label="Alternar auto-scroll del monitor serie"
           >
-            <ArrowDown className="w-3.5 h-3.5" />
+            <ArrowDown className="w-3.5 h-3.5" strokeWidth={1.75} />
           </button>
 
           <button
             onClick={handleCopy}
-            className="p-1.5 rounded-lg text-xs font-mono text-slate-400 hover:text-black dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-95 focus:ring-1 focus:ring-slate-400 focus:outline-none"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition active:scale-95"
             title="Copiar flujo serial"
             aria-label="Copiar líneas de terminal serial al portapapeles"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={1.75} />
+            ) : (
+              <Copy className="w-3.5 h-3.5" strokeWidth={1.75} />
+            )}
           </button>
 
           <button
             onClick={onClear}
-            className="p-1.5 rounded-lg text-xs font-mono text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-95 focus:ring-1 focus:ring-slate-400 focus:outline-none"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-red-500 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition active:scale-95"
             title="Limpiar buffer"
             aria-label="Limpiar terminal serial"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3.5 h-3.5" strokeWidth={1.75} />
           </button>
         </div>
       </div>
 
-      {/* Terminal Viewport */}
+      {/* Terminal Viewport (Apple Terminal macOS styling) */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto font-mono text-[10px] leading-relaxed p-2.5 rounded-xl bg-[#07090e] text-slate-300 space-y-0.5 border border-slate-800"
+        className="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed p-3 rounded-xl bg-zinc-950 text-zinc-300 space-y-1 border border-zinc-800/80 shadow-inner"
       >
         {lines.length === 0 ? (
-          <div className="text-slate-500 italic py-6 text-center text-xs">
+          <div className="text-zinc-500 italic py-6 text-center text-xs">
             Sin paquetes telemétricos en buffer. Conecta el puerto USB o inicia el simulador.
           </div>
         ) : (
           lines.map((line, index) => {
-            let textColor = 'text-slate-400';
+            let textColor = 'text-zinc-400';
             if (line.includes('INCLINADO') || line.includes('Error')) {
               textColor = 'text-amber-400';
             }
             if (line.includes('Alerta') || line.includes('DISPARADO') || line.includes('Crítica') || line.includes('Umbral')) {
-              textColor = 'text-red-400 font-bold';
+              textColor = 'text-red-400 font-semibold';
             }
             if (line.includes('ERGUIDO') || line.includes('Conectado')) {
               textColor = 'text-emerald-400';
             }
             return (
-              <div key={index} className="flex gap-2">
-                <span className="text-slate-600 select-none tabular-nums">{String(index + 1).padStart(3, '0')}</span>
-                <span className={textColor}>{line}</span>
+              <div key={index} className="flex gap-2.5">
+                <span className="text-zinc-600 select-none tabular-nums shrink-0">{String(index + 1).padStart(3, '0')}</span>
+                <span className={`${textColor} break-all`}>{line}</span>
               </div>
             );
           })

@@ -1,72 +1,157 @@
-import React from 'react';
-import { Siren, Volume2, BellRing, ShieldAlert, Sparkles, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Siren, Volume2, BellRing, X } from 'lucide-react';
 
-interface AlertBannerProps {
+export interface AlertBannerProps {
   isActive: boolean;
+  onDismiss?: () => void;
+  className?: string;
 }
 
-export const AlertBanner: React.FC<AlertBannerProps> = ({ isActive }) => {
-  if (!isActive) return null;
+export const AlertBanner: React.FC<AlertBannerProps> = ({
+  isActive,
+  onDismiss,
+  className = ''
+}) => {
+  const [isRendered, setIsRendered] = useState<boolean>(isActive);
+  const [isLeaving, setIsLeaving] = useState<boolean>(false);
+  const [isDismissed, setIsDismissed] = useState<boolean>(false);
+
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevActiveRef = useRef<boolean>(isActive);
+  const isDismissedRef = useRef<boolean>(false);
+  isDismissedRef.current = isDismissed;
+
+  useEffect(() => {
+    const wasActive = prevActiveRef.current;
+    prevActiveRef.current = isActive;
+
+    if (exitTimerRef.current) {
+      clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
+    }
+
+    if (isActive) {
+      // If entering a new alert cycle from inactive, reset dismiss state
+      if (!wasActive) {
+        setIsDismissed(false);
+        isDismissedRef.current = false;
+      }
+      if (!isDismissedRef.current) {
+        setIsRendered(true);
+        setIsLeaving(false);
+      }
+    } else {
+      // Alert ended
+      setIsDismissed(false);
+      isDismissedRef.current = false;
+      setIsRendered((currentlyRendered) => {
+        if (currentlyRendered) {
+          setIsLeaving(true);
+          exitTimerRef.current = setTimeout(() => {
+            setIsRendered(false);
+            setIsLeaving(false);
+            exitTimerRef.current = null;
+          }, 280);
+        }
+        return currentlyRendered;
+      });
+    }
+
+    return () => {
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, [isActive]);
+
+  const handleDismiss = () => {
+    if (exitTimerRef.current) {
+      clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
+    }
+    setIsLeaving(true);
+    exitTimerRef.current = setTimeout(() => {
+      setIsDismissed(true);
+      isDismissedRef.current = true;
+      setIsRendered(false);
+      setIsLeaving(false);
+      exitTimerRef.current = null;
+      onDismiss?.();
+    }, 280);
+  };
+
+  if (!isRendered || isDismissed) return null;
 
   return (
-    <div className="w-full rounded-[24px] bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white p-4 md:p-5 border-2 border-white/80 animate-siren transition-all duration-300 select-none">
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        {/* Left: Siren Icon & Alert Message */}
-        <div className="flex items-center gap-3.5">
-          {/* Glowing Siren Badge */}
-          <div className="relative p-3 rounded-2xl bg-black/25 border border-white/30 backdrop-blur-md shadow-inner shrink-0">
-            <Siren className="w-6 h-6 text-white animate-pulse" />
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-90"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+    <aside
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+      className={`fixed top-3 right-3 sm:top-4 sm:right-4 z-50 w-[calc(100vw-1.5rem)] sm:w-[420px] max-w-[440px] select-none ${
+        isLeaving ? 'animate-toast-exit pointer-events-none' : 'animate-toast-enter pointer-events-auto'
+      } ${className}`}
+    >
+      <div className="w-full rounded-2xl bg-red-600/95 dark:bg-red-700/95 text-white p-4 sm:p-4.5 border border-red-300/40 dark:border-red-400/30 shadow-[0_12px_36px_rgba(220,38,38,0.38),0_4px_16px_rgba(0,0,0,0.18)] backdrop-blur-xl animate-siren transition-all duration-300">
+        {/* Header row: Status tag, pill indicator, dismiss button */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative p-1.5 rounded-lg bg-white/20 border border-white/25 backdrop-blur-md shrink-0">
+              <Siren className="w-4 h-4 text-white animate-pulse" strokeWidth={2} />
+              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-90"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+              </span>
+            </div>
+            <span className="text-[10px] font-mono tracking-wider uppercase font-bold text-red-100">
+              Alerta de Seguridad &bull; Unidad #04
+            </span>
+            <span className="text-[10px] font-mono text-red-200/90 bg-white/10 px-1.5 py-0.5 rounded-md border border-white/15">
+              &gt; 1.5s
             </span>
           </div>
 
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="px-2 py-0.5 rounded-full bg-black/40 border border-white/20 text-[10px] font-mono tracking-widest uppercase font-extrabold text-white">
-                ALERTA DE SEGURIDAD EN RUTA &bull; UNIDAD #04
-              </span>
-              <span className="text-[10px] font-mono text-rose-200 font-bold bg-white/10 px-2 py-0.5 rounded-full">
-                UMBRAL &gt; 1.5s
-              </span>
-            </div>
-
-            <h2 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-white flex items-center gap-2">
-              <span>¡CABECEO CRÍTICO DETECTADO! CONDUCTOR EN RIESGO DE DORMIR</span>
-            </h2>
-
-            <p className="text-xs text-rose-100 font-medium mt-0.5">
-              Inclinación cefálica sostenida detectada por el sensor D0. Actuadores de cabina disparados automáticamente.
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="p-1 -mr-1 -mt-0.5 rounded-full hover:bg-white/20 active:scale-95 text-red-100 hover:text-white transition-all shrink-0 cursor-pointer"
+            aria-label="Cerrar notificación"
+            title="Cerrar notificación"
+          >
+            <X className="w-4 h-4" strokeWidth={2} />
+          </button>
         </div>
 
-        {/* Right: Active Actuators Status Badges with Polished Icons */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
-          {/* Buzzer Badge */}
-          <div className="px-3.5 py-2 rounded-2xl bg-black/35 border border-white/25 backdrop-blur-md flex items-center gap-2 text-xs font-mono font-bold text-white shadow-sm">
-            <div className="p-1 rounded-lg bg-amber-400 text-black">
-              <Volume2 className="w-3.5 h-3.5 animate-pulse" />
-            </div>
-            <div>
-              <span className="block text-[9px] text-amber-200/80 uppercase font-sans font-semibold -mb-0.5">Actuador Acústico</span>
-              <span>Buzzer Pin 8 (200ms)</span>
-            </div>
-          </div>
+        {/* Content: Title and message */}
+        <div className="mb-3">
+          <h2 className="text-sm sm:text-base font-bold tracking-tight text-white leading-tight">
+            ¡Cabeceo Crítico Detectado!
+          </h2>
+          <p className="text-xs text-red-100/90 font-normal mt-1 leading-relaxed">
+            Inclinación cefálica sostenida detectada por el sensor D0. Actuadores de cabina activados automáticamente.
+          </p>
+        </div>
 
-          {/* Motor Vibrator Badge */}
-          <div className="px-3.5 py-2 rounded-2xl bg-black/35 border border-white/25 backdrop-blur-md flex items-center gap-2 text-xs font-mono font-bold text-white shadow-sm">
-            <div className="p-1 rounded-lg bg-yellow-400 text-black">
-              <BellRing className="w-3.5 h-3.5 animate-bounce" />
+        {/* Footer: Actuator status badges */}
+        <div className="flex items-center gap-2 pt-2.5 border-t border-white/15">
+          <span className="text-[10px] uppercase font-mono tracking-wide text-red-200 font-semibold shrink-0">
+            Actuadores:
+          </span>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Buzzer Badge */}
+            <div className="px-2.5 py-1 rounded-lg bg-white/15 border border-white/20 backdrop-blur-md flex items-center gap-1.5 text-[11px] font-medium text-white shadow-sm">
+              <Volume2 className="w-3 h-3 text-white animate-pulse" strokeWidth={2} />
+              <span>Buzzer (Pin 8)</span>
             </div>
-            <div>
-              <span className="block text-[9px] text-yellow-200/80 uppercase font-sans font-semibold -mb-0.5">Actuador Háptico</span>
-              <span>Vibrador Pin 9 (NPN)</span>
+
+            {/* Motor Vibrator Badge */}
+            <div className="px-2.5 py-1 rounded-lg bg-white/15 border border-white/20 backdrop-blur-md flex items-center gap-1.5 text-[11px] font-medium text-white shadow-sm">
+              <BellRing className="w-3 h-3 text-white animate-bounce" strokeWidth={2} />
+              <span>Vibrador (Pin 9)</span>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 };

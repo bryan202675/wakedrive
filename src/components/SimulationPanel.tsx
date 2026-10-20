@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RotateCcw, AlertTriangle, ShieldCheck, Zap, Pause, Sliders, Radio } from 'lucide-react';
+import { Play, RotateCcw, AlertTriangle, ShieldCheck, Zap, Pause, Sliders } from 'lucide-react';
 
 interface SimulationPanelProps {
   onSimulateErguido: () => void;
@@ -52,50 +52,43 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
   }, []);
 
   return (
-    <div className="squircle-card p-5 md:p-6 flex flex-col justify-between h-[240px] shadow-card transition-all">
+    <div className="squircle-card p-5 md:p-6 flex flex-col justify-between min-h-[240px] h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300">
-            <Sliders className="w-4 h-4 text-purple-500" />
-          </div>
+          <Sliders className="w-4 h-4 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} />
           <div>
-            <span className="text-sm font-bold text-slate-900 dark:text-white block">
-              Banco de Simulación de Cabina
-            </span>
-            <span className="text-xs text-slate-400">
-              Inyección de tramas seriales a 9600 Baud
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">
+              Simulador de Cabina
             </span>
           </div>
         </div>
 
-        {/* Reset Counter Button */}
+        {/* Reset Counter Button - Apple Secondary Button */}
         <button
           onClick={onResetStats}
-          className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-600 dark:text-slate-300 text-xs font-mono font-medium transition flex items-center gap-1.5 border border-black/5 dark:border-white/10 active:scale-95"
+          className="apple-button-secondary text-xs active:scale-95"
           title="Reiniciar contador de incidentes"
         >
-          <RotateCcw className="w-3 h-3" />
+          <RotateCcw className="w-3 h-3" strokeWidth={1.75} />
           <span>Reiniciar</span>
         </button>
       </div>
 
-      {/* 2x2 Grid of Simulation Actions with Rich Subtitles */}
-      <div className="grid grid-cols-2 gap-2.5 flex-1 my-1">
+      {/* 2x2 Grid of Simulation Actions - Clean Apple Control Tiles (NO rainbow boxes) */}
+      <div className="grid grid-cols-2 gap-2.5 flex-1 my-2">
         {/* 1. Erguido */}
         <button
           onClick={onSimulateErguido}
-          className="p-2.5 rounded-xl bg-emerald-500/[0.06] hover:bg-emerald-500/[0.12] dark:bg-emerald-950/[0.2] dark:hover:bg-emerald-950/[0.35] border border-emerald-500/20 text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+          className="p-2.5 sm:p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06] text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:outline-none"
         >
-          <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-            <ShieldCheck className="w-4 h-4" />
-          </div>
+          <ShieldCheck className="w-4 h-4 text-zinc-600 dark:text-zinc-300 group-hover:text-emerald-500 transition-colors shrink-0 mt-0.5" strokeWidth={1.75} />
           <div className="min-w-0">
-            <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">
+            <span className="text-xs font-semibold text-zinc-900 dark:text-white block truncate">
               Erguido
             </span>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-mono truncate">
-              D0: HIGH &bull; Postura normal
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block font-mono truncate">
+              D0: HIGH &bull; 5V
             </span>
           </div>
         </button>
@@ -103,17 +96,15 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
         {/* 2. Cabeceo */}
         <button
           onClick={onSimulateInclinado}
-          className="p-2.5 rounded-xl bg-amber-500/[0.06] hover:bg-amber-500/[0.12] dark:bg-amber-950/[0.2] dark:hover:bg-amber-950/[0.35] border border-amber-500/20 text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:ring-2 focus:ring-amber-500 focus:outline-none"
+          className="p-2.5 sm:p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06] text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:outline-none"
         >
-          <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
-            <AlertTriangle className="w-4 h-4" />
-          </div>
+          <AlertTriangle className="w-4 h-4 text-zinc-600 dark:text-zinc-300 group-hover:text-amber-500 transition-colors shrink-0 mt-0.5" strokeWidth={1.75} />
           <div className="min-w-0">
-            <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">
+            <span className="text-xs font-semibold text-zinc-900 dark:text-white block truncate">
               Cabeceo (1.5s)
             </span>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-mono truncate">
-              D0: LOW &bull; Ventana activa
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block font-mono truncate">
+              D0: LOW &bull; 0V
             </span>
           </div>
         </button>
@@ -121,17 +112,15 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
         {/* 3. Alerta Inmediata */}
         <button
           onClick={onSimulateAlerta}
-          className="p-2.5 rounded-xl bg-red-500/[0.06] hover:bg-red-500/[0.12] dark:bg-red-950/[0.2] dark:hover:bg-red-950/[0.35] border border-red-500/20 text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:ring-2 focus:ring-red-500 focus:outline-none"
+          className="p-2.5 sm:p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06] text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:outline-none"
         >
-          <div className="p-1.5 rounded-lg bg-red-500/15 text-red-600 dark:text-red-400 shrink-0">
-            <Zap className="w-4 h-4" />
-          </div>
+          <Zap className="w-4 h-4 text-zinc-600 dark:text-zinc-300 group-hover:text-red-500 transition-colors shrink-0 mt-0.5" strokeWidth={1.75} />
           <div className="min-w-0">
-            <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">
+            <span className="text-xs font-semibold text-zinc-900 dark:text-white block truncate">
               Alerta Inmediata
             </span>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-mono truncate">
-              Buzzer 8 + Motor 9
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 block font-mono truncate">
+              Pin 8 + Pin 9
             </span>
           </div>
         </button>
@@ -139,30 +128,32 @@ export const SimulationPanel: React.FC<SimulationPanelProps> = ({
         {/* 4. Ciclo Demo Automático */}
         <button
           onClick={isAutoLooping ? stopAutoLoop : startAutoLoop}
-          className={`p-2.5 rounded-xl border text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:ring-2 focus:ring-purple-500 focus:outline-none ${
+          className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all flex items-start gap-2 group active:scale-[0.98] focus:outline-none ${
             isAutoLooping
-              ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-              : 'bg-purple-500/[0.06] hover:bg-purple-500/[0.12] dark:bg-purple-950/[0.2] dark:hover:bg-purple-950/[0.35] border-purple-500/20'
+              ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 border-zinc-900 dark:border-white shadow-sm'
+              : 'bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border-black/[0.04] dark:border-white/[0.06]'
           }`}
         >
-          <div className={`p-1.5 rounded-lg shrink-0 ${isAutoLooping ? 'bg-white/20 text-white' : 'bg-purple-500/15 text-purple-600 dark:text-purple-400'}`}>
-            {isAutoLooping ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          </div>
+          {isAutoLooping ? (
+            <Pause className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.75} />
+          ) : (
+            <Play className="w-4 h-4 text-zinc-600 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white shrink-0 mt-0.5" strokeWidth={1.75} />
+          )}
           <div className="min-w-0">
-            <span className={`text-xs font-bold block truncate ${isAutoLooping ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+            <span className={`text-xs font-semibold block truncate ${isAutoLooping ? '' : 'text-zinc-900 dark:text-white'}`}>
               {isAutoLooping ? 'Detener Demo' : 'Ciclo Demo'}
             </span>
-            <span className={`text-[11px] block font-mono truncate ${isAutoLooping ? 'text-purple-100' : 'text-slate-500 dark:text-slate-400'}`}>
-              {isAutoLooping ? 'Bucle en ejecución' : 'Secuencia automática'}
+            <span className={`text-[11px] block font-mono truncate ${isAutoLooping ? 'opacity-80' : 'text-zinc-400 dark:text-zinc-500'}`}>
+              {isAutoLooping ? 'En ejecución' : 'Auto secuencia'}
             </span>
           </div>
         </button>
       </div>
 
       {/* Footer Info */}
-      <div className="pt-2 border-t border-black/5 dark:border-white/10 flex items-center justify-between text-xs text-slate-500">
-        <span className="font-mono text-[11px]">Protocolo: Crudo [0|1] Filtrado [INCLINADO|ERGUIDO]</span>
-        <span className="font-semibold text-purple-600 dark:text-purple-400">Listo para prueba</span>
+      <div className="pt-2 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+        <span className="font-mono text-[11px]">Protocolo: Crudo [0|1] &bull; Filtrado [INCLINADO|ERGUIDO]</span>
+        <span className="font-medium text-zinc-600 dark:text-zinc-400">Listo</span>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Clock, ShieldAlert, CheckCircle2, Activity, AlertCircle, Compass } from 'lucide-react';
+import { Clock, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
 import { FilteredStatus } from '../types';
 
 interface RightSideWidgetsProps {
@@ -53,10 +53,10 @@ export const RightSideWidgets: React.FC<RightSideWidgetsProps> = ({
   const { width, height } = dimensions;
 
   // Chart padding
-  const padLeft = 12;
-  const padRight = 56; // Room for threshold labels on the right
-  const padTop = 18;
-  const padBottom = 22;
+  const padLeft = 8;
+  const padRight = 50; // Room for threshold labels on the right
+  const padTop = 16;
+  const padBottom = 20;
 
   const chartW = Math.max(100, width - padLeft - padRight);
   const chartH = Math.max(60, height - padTop - padBottom);
@@ -90,106 +90,104 @@ export const RightSideWidgets: React.FC<RightSideWidgetsProps> = ({
   const histPath = `M ${padLeft},${scoreToY(720)} C ${cp1x},${histCp1y} ${cp2x},${histCp2y} ${currentX},${histEndY}`;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-      {/* CARD 1: Jornada Continua en Ruta (5 cols) */}
-      <div className="lg:col-span-5 squircle-card p-5 md:p-6 flex flex-col justify-between shadow-card transition-all">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+      {/* CARD 1: Jornada Continua en Ruta (5 cols) - Minimalist Apple Card without colorful boxes */}
+      <div className="lg:col-span-5 squircle-card p-5 md:p-6 flex flex-col justify-between">
         <div>
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
+          {/* Header without nested colorful boxes */}
+          <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300">
-                <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
-                  Tiempo en Ruta
-                </span>
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  Jornada Continua
-                </span>
-              </div>
+              <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} />
+              <span className="text-xs font-semibold tracking-wide text-zinc-500 dark:text-zinc-400 uppercase">
+                Tiempo en Ruta
+              </span>
             </div>
 
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
-              Turno Activo
-            </span>
+            {/* Clean Apple-style status: subtle dot + monochrome text (NO pastel green badge container!) */}
+            <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Turno activo</span>
+            </div>
           </div>
 
           {/* Time Display */}
-          <div className="mt-2">
-            <div className="text-xs text-slate-500">Tiempo ininterrumpido de conducción</div>
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white font-mono tabular-nums">
+          <div className="mt-4">
+            <div className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+              Duración ininterrumpida
+            </div>
+            <div className="flex items-baseline gap-2.5 mt-1">
+              <span className="text-4xl md:text-5xl font-semibold tracking-tight text-zinc-900 dark:text-white font-mono tabular-nums">
                 {sessionTimeFormatted}
               </span>
-              <span className="text-xs font-semibold text-slate-400 font-mono">
-                / 5h 00m Límite
-              </span>
             </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5 leading-relaxed">
-              Protocolo de seguridad: Parada obligatoria de descanso al completar 5 horas continuas.
-            </p>
           </div>
         </div>
 
-        {/* Fatigue Status Indicator Dots */}
-        <div className="pt-3 border-t border-black/5 dark:border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-1.5" title="Progresión de fatiga acumulada">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-200 dark:bg-zinc-700"></span>
-            <span className="w-2.5 h-2.5 rounded-full border border-slate-300 dark:border-zinc-600"></span>
+        {/* Minimal Progress Bar & Status Footer */}
+        <div className="pt-4 mt-4 border-t border-black/[0.06] dark:border-white/[0.06]">
+          <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+            <span>Progreso de turno</span>
+            <span className="font-mono tabular-nums text-zinc-700 dark:text-zinc-300 font-medium">
+              {alertCount === 0 ? 'Sin micro-sueños' : `${alertCount} anomalías`}
+            </span>
           </div>
-          <span className="text-xs font-mono font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
-            {alertCount === 0 ? 'Sin micro-sueños en turno' : `${alertCount} anomalías registradas`}
-          </span>
+          {(() => {
+            const parts = sessionTimeFormatted.split(':').map(Number);
+            const totalSec = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+            const pct = Math.min(100, Math.max(1, Math.round((totalSec / 18000) * 100)));
+            return (
+              <div className="w-full h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    alertCount > 0 ? 'bg-amber-500' : 'bg-zinc-900 dark:bg-zinc-300'
+                  }`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            );
+          })()}
         </div>
       </div>
 
-      {/* CARD 2: Curva de Atención y Fatiga en Ruta (7 cols) - ZERO DEFORMATION */}
-      <div className="lg:col-span-7 squircle-card p-5 md:p-6 flex flex-col justify-between shadow-card transition-all">
-        {/* Header with Title and Legend in Distinct Dedicated Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+      {/* CARD 2: Curva de Atención en Ruta (7 cols) - Clean Apple Charts */}
+      <div className="lg:col-span-7 squircle-card p-5 md:p-6 flex flex-col justify-between">
+        {/* Header with Clean Legend */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300">
-              <Activity className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-            </div>
-            <div>
-              <span className="text-sm font-bold text-slate-900 dark:text-white block">
-                Curva de Atención en Ruta
-              </span>
-              <span className="text-xs text-slate-400">
-                Monitoreo cefálico continuo con umbrales normativos
-              </span>
-            </div>
+            <Activity className="w-4 h-4 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} />
+            <span className="text-xs font-semibold tracking-wide text-zinc-500 dark:text-zinc-400 uppercase">
+              Curva de Atención
+            </span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-500 font-normal">
+              &bull; Monitoreo cefálico
+            </span>
           </div>
 
-          {/* Clean Legend (Distinct from X-Axis labels) */}
-          <div className="flex items-center gap-3 text-xs font-sans">
-            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-              <span className="w-2.5 h-1 rounded-full bg-emerald-500 inline-block"></span>
-              En Vivo
+          {/* Clean Legend: subtle dots and calm typography */}
+          <div className="flex items-center gap-3.5 text-xs text-zinc-500 dark:text-zinc-400">
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className={`w-2 h-2 rounded-full ${isAlertActive ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+              En vivo
             </span>
-            <span className="flex items-center gap-1.5 text-slate-400 font-medium">
-              <span className="w-2.5 h-0.5 border-b border-dashed border-slate-400 inline-block"></span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-0.5 border-b border-dashed border-zinc-400 dark:border-zinc-600"></span>
               Histórico
             </span>
           </div>
         </div>
 
-        {/* Dynamic Real-Pixel SVG Container (Strictly NO preserveAspectRatio="none") */}
-        <div ref={chartContainerRef} className="relative w-full h-36 my-1">
+        {/* Dynamic Real-Pixel SVG Container (Apple Health style) */}
+        <div ref={chartContainerRef} className="relative w-full h-36 my-2">
           <svg
             className="w-full h-full overflow-visible"
             viewBox={`0 0 ${width} ${height}`}
           >
             <defs>
-              <linearGradient id="attentionAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="appleAttentionAreaGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="0%"
                   stopColor={isAlertActive ? '#ef4444' : '#10b981'}
-                  stopOpacity="0.22"
+                  stopOpacity="0.14"
                 />
                 <stop
                   offset="100%"
@@ -199,43 +197,15 @@ export const RightSideWidgets: React.FC<RightSideWidgetsProps> = ({
               </linearGradient>
             </defs>
 
-            {/* Zone Shading: Óptimo (>690) */}
-            <rect
-              x={padLeft}
-              y={padTop}
-              width={chartW}
-              height={Math.max(0, y690 - padTop)}
-              fill="#10b981"
-              fillOpacity="0.04"
-            />
-            {/* Zone Shading: Normal / Cabeceo (300 - 690) */}
-            <rect
-              x={padLeft}
-              y={y690}
-              width={chartW}
-              height={Math.max(0, y300 - y690)}
-              fill="#f59e0b"
-              fillOpacity="0.03"
-            />
-            {/* Zone Shading: Crítico (<300) */}
-            <rect
-              x={padLeft}
-              y={y300}
-              width={chartW}
-              height={Math.max(0, padTop + chartH - y300)}
-              fill="#ef4444"
-              fillOpacity="0.05"
-            />
-
             {/* Threshold Line at 690 (Norm / Óptimo) */}
             <line
               x1={padLeft}
               y1={y690}
               x2={currentX}
               y2={y690}
-              stroke="#84cc16"
-              strokeOpacity="0.45"
-              strokeDasharray="4 4"
+              stroke="currentColor"
+              className="text-zinc-200 dark:text-zinc-800"
+              strokeDasharray="3 3"
               strokeWidth="1"
             />
 
@@ -246,15 +216,15 @@ export const RightSideWidgets: React.FC<RightSideWidgetsProps> = ({
               x2={currentX}
               y2={y300}
               stroke="#ef4444"
-              strokeOpacity="0.45"
-              strokeDasharray="4 4"
+              strokeOpacity="0.25"
+              strokeDasharray="3 3"
               strokeWidth="1"
             />
 
             {/* Area under curve */}
             <path
               d={areaPath}
-              fill="url(#attentionAreaGrad)"
+              fill="url(#appleAttentionAreaGrad)"
             />
 
             {/* Historical Faint Spline */}
@@ -262,7 +232,7 @@ export const RightSideWidgets: React.FC<RightSideWidgetsProps> = ({
               d={histPath}
               fill="none"
               stroke="currentColor"
-              className="text-slate-300 dark:text-zinc-700"
+              className="text-zinc-300 dark:text-zinc-700"
               strokeWidth="1.2"
               strokeDasharray="3 3"
             />
@@ -272,71 +242,42 @@ export const RightSideWidgets: React.FC<RightSideWidgetsProps> = ({
               d={splinePath}
               fill="none"
               stroke={isAlertActive ? '#ef4444' : '#10b981'}
-              strokeWidth="2.5"
+              strokeWidth="2.2"
               strokeLinecap="round"
             />
 
-            {/* Vertical Guide Line to Apex Marker */}
-            <line
-              x1={currentX}
-              y1={currentY}
-              x2={currentX}
-              y2={padTop + chartH}
-              stroke="currentColor"
-              className="text-slate-300 dark:text-zinc-700"
-              strokeDasharray="2 2"
-              strokeWidth="1"
-            />
-
-            {/* Fixed Real-Pixel Circular Marker at Apex (Never an oval!) */}
+            {/* Fixed Real-Pixel Circular Marker at Apex */}
             <circle
               cx={currentX}
               cy={currentY}
-              r="7"
-              fill={isAlertActive ? '#ef4444' : '#10b981'}
-              className="animate-ping opacity-75"
-            />
-            <circle
-              cx={currentX}
-              cy={currentY}
-              r="5"
+              r="4.5"
               fill={isAlertActive ? '#ef4444' : '#10b981'}
               stroke="#ffffff"
               strokeWidth="2"
             />
 
-            {/* Floating Score Tooltip Badge in Real Pixels */}
-            <g transform={`translate(${currentX - 22}, ${Math.max(padTop - 4, currentY - 14)})`}>
-              <rect
-                x="0"
-                y="-10"
-                width="44"
-                height="18"
-                rx="9"
-                fill={isAlertActive ? '#ef4444' : '#10b981'}
-                className="shadow-sm"
-              />
-              <text
-                x="22"
-                y="3"
-                textAnchor="middle"
-                fill="#ffffff"
-                fontSize="10"
-                fontWeight="bold"
-                fontFamily="'JetBrains Mono', monospace"
-              >
-                {currentScore}
-              </text>
-            </g>
+            {/* Clean Numeric Tooltip at Apex */}
+            <text
+              x={currentX - 6}
+              y={Math.max(padTop + 2, currentY - 8)}
+              textAnchor="end"
+              fill={isAlertActive ? '#ef4444' : 'currentColor'}
+              className="text-zinc-900 dark:text-white"
+              fontSize="11"
+              fontWeight="600"
+              fontFamily="-apple-system, BlinkMacSystemFont, 'SF Mono', monospace"
+            >
+              {currentScore} pts
+            </text>
 
-            {/* Outside Threshold Labels at Right Border (Never overlapping the line) */}
+            {/* Outside Threshold Labels at Right Border */}
             <text
               x={currentX + 8}
               y={y690 + 3}
-              fill="#84cc16"
+              className="text-zinc-400 dark:text-zinc-600"
+              fill="currentColor"
               fontSize="9"
-              fontWeight="bold"
-              fontFamily="'JetBrains Mono', monospace"
+              fontFamily="-apple-system, BlinkMacSystemFont, 'SF Mono', monospace"
             >
               690
             </text>
@@ -344,22 +285,22 @@ export const RightSideWidgets: React.FC<RightSideWidgetsProps> = ({
               x={currentX + 8}
               y={y300 + 3}
               fill="#ef4444"
+              opacity="0.8"
               fontSize="9"
-              fontWeight="bold"
-              fontFamily="'JetBrains Mono', monospace"
+              fontFamily="-apple-system, BlinkMacSystemFont, 'SF Mono', monospace"
             >
               300
             </text>
           </svg>
         </div>
 
-        {/* Dedicated Separate X-Axis Time Row (Spacing >= 72px, Never colliding with legends) */}
-        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 dark:text-slate-500 pt-1 border-t border-black/5 dark:border-white/10 select-none">
+        {/* Dedicated Separate X-Axis Time Row */}
+        <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500 pt-2 border-t border-black/[0.06] dark:border-white/[0.06] select-none">
           <span>-30 min</span>
           <span className="hidden sm:inline">-20 min</span>
           <span>-10 min</span>
           <span className="hidden sm:inline">-5 min</span>
-          <span className="font-bold text-slate-700 dark:text-slate-300">Ahora (En Vivo)</span>
+          <span className="font-medium text-zinc-700 dark:text-zinc-300">Ahora (En vivo)</span>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { FilteredStatus } from '../types';
-import { Eye, ShieldAlert, CheckCircle2, RotateCcw, Compass, Radio, Loader2 } from 'lucide-react';
+import { Eye, ShieldAlert, CheckCircle2, RotateCcw, Compass, Loader2 } from 'lucide-react';
 
 interface Driver3DViewProps {
   filteredStatus: FilteredStatus;
@@ -21,14 +21,16 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
-  // Model & Rig References
+  // Rig & Skeleton References
   const headBoneRef = useRef<THREE.Bone | null>(null);
-  const leftArmRef = useRef<THREE.Bone | null>(null);
-  const leftForeArmRef = useRef<THREE.Bone | null>(null);
+  const neckBoneRef = useRef<THREE.Bone | null>(null);
+  const spine2BoneRef = useRef<THREE.Bone | null>(null);
+  const leftShoulderRef = useRef<THREE.Bone | null>(null);
+  const rightShoulderRef = useRef<THREE.Bone | null>(null);
   const leftHandRef = useRef<THREE.Bone | null>(null);
-  const rightArmRef = useRef<THREE.Bone | null>(null);
-  const rightForeArmRef = useRef<THREE.Bone | null>(null);
   const rightHandRef = useRef<THREE.Bone | null>(null);
+  const leftGripBonesRef = useRef<THREE.Bone[]>([]);
+  const rightGripBonesRef = useRef<THREE.Bone[]>([]);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const driverRootRef = useRef<THREE.Group | null>(null);
   const sensorLedMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
@@ -37,45 +39,74 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
   const [isUserInteracting, setIsUserInteracting] = useState(false);
   const [isLoadingModel, setIsLoadingModel] = useState(true);
 
-  // Animation targets (Head pitch only for natural drowsiness)
+  // Targets Ref to sync telemetry state without remounting or resetting the 3D scene
   const targetsRef = useRef({
-    headPitch: 0,        // Head forward pitch (rad)
+    status: filteredStatus,
+    isAlert: isAlertActive,
+    progress: confirmationProgress,
+    targetHeadPitch: 0,
+    targetNeckPitch: 0,
+    targetSpinePitch: 0,
     currentHeadPitch: 0,
+    currentNeckPitch: 0,
+    currentSpinePitch: 0,
+    currentShoulderDrop: 0,
+    totalPitch: 0,
+    baseHead: new THREE.Quaternion(),
+    baseNeck: new THREE.Quaternion(),
+    baseSpine: new THREE.Quaternion(),
+    baseLeftShoulder: new THREE.Quaternion(),
+    baseRightShoulder: new THREE.Quaternion(),
   });
 
+  const lastReportedPitchRef = useRef<number>(0);
+
   // Camera initial & target coordinates
-  const initialCamPos = useRef(new THREE.Vector3(0.70, 0.95, 1.45));
-  const targetLookAt = useRef(new THREE.Vector3(0, 0.74, 0.15));
+  const initialCamPos = useRef(new THREE.Vector3(0.85, 0.98, 1.62));
+  const targetLookAt = useRef(new THREE.Vector3(-0.02, 0.82, 0.18));
 
-  // Sync posture targets with Arduino telemetry status
-  // STRICTLY only head pitch to simulate falling asleep at the wheel
+  // Sync posture targets smoothly with Arduino telemetry status
+  // Verde (Estable): Erguido y atento al volante (0°)
+  // Amarillo (Leve / Inclinado): Cabeceo progresivo / microsueño (18° a 26°)
+  // Rojo (Crítico / Alerta): Caída severa de cabeza / somnolencia profunda (38°)
   useEffect(() => {
-    if (isAlertActive) {
-      // Critical sleepiness: head completely drops forward (chin down ~32°)
-      targetsRef.current.headPitch = THREE.MathUtils.degToRad(32);
-    } else if (filteredStatus === 'INCLINADO') {
-      // Drowsy nod during confirmation window (~18°)
-      targetsRef.current.headPitch = THREE.MathUtils.degToRad(18);
-    } else {
-      // Alert, upright driving posture
-      targetsRef.current.headPitch = 0;
-    }
-  }, [filteredStatus, isAlertActive]);
+    targetsRef.current.status = filteredStatus;
+    targetsRef.current.isAlert = isAlertActive;
+    targetsRef.current.progress = confirmationProgress;
 
-  // Three.js Scene Setup & Render Loop
+    if (isAlertActive) {
+      // Estado Crítico (Rojo): Caída pronunciada de cabeza, cuello y torso
+      targetsRef.current.targetHeadPitch = THREE.MathUtils.degToRad(55);
+      targetsRef.current.targetNeckPitch = THREE.MathUtils.degToRad(15);
+      // Inclina el torso suavemente sin cambiar el clip ni el cabeceo de cabeza.
+      targetsRef.current.targetSpinePitch = THREE.MathUtils.degToRad(15);
+    } else if (filteredStatus === 'INCLINADO') {
+      // Estado Leve (Amarillo): Cabeceo progresivo en función de la ventana de confirmación
+      const progressFactor = Math.min(Math.max(confirmationProgress / 100, 0), 1);
+      const nodAngle = 12 + 16 * progressFactor;
+      targetsRef.current.targetHeadPitch = THREE.MathUtils.degToRad(nodAngle * 0.94);
+      targetsRef.current.targetNeckPitch = THREE.MathUtils.degToRad(nodAngle * 0.66);
+      targetsRef.current.targetSpinePitch = THREE.MathUtils.degToRad(6 * progressFactor);
+    } else {
+      // Estado Estable (Verde): Postura erguida, natural y atenta
+      targetsRef.current.targetHeadPitch = 0;
+      targetsRef.current.targetNeckPitch = 0;
+      targetsRef.current.targetSpinePitch = 0;
+    }
+  }, [filteredStatus, isAlertActive, confirmationProgress]);
+
+  // Main Three.js Scene Setup (Mounts ONCE - continuous animation without restarts)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Detect dark mode
-    const isDark = document.documentElement.classList.contains('dark');
+    let isDark = document.documentElement.classList.contains('dark');
 
     // 1. SCENE & ENVIRONMENT
     const scene = new THREE.Scene();
-    const bgColor = isDark ? 0x0f1422 : 0xf4f0e8;
-    scene.background = new THREE.Color(bgColor);
+    scene.background = new THREE.Color(isDark ? 0x0f1422 : 0xf4f0e8);
 
-    // 2. CAMERA (FOV 32°, auto-framed to cockpit)
+    // 2. CAMERA (FOV 32°, tuned for automotive cockpit framing)
     const width = container.clientWidth || 400;
     const height = container.clientHeight || 420;
     const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 40);
@@ -92,7 +123,7 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = isDark ? 1.15 : 1.05;
 
-    // Clear previous canvas
+    // Clean previous canvas if any
     while (container.firstChild) {
       container.removeChild(container.firstChild);
     }
@@ -103,14 +134,13 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.target.copy(targetLookAt.current);
-    controls.minDistance = 0.9;
-    controls.maxDistance = 2.8;
-    controls.minPolarAngle = THREE.MathUtils.degToRad(60);
-    controls.maxPolarAngle = THREE.MathUtils.degToRad(100);
-    controls.minAzimuthAngle = THREE.MathUtils.degToRad(-80);
-    controls.maxAzimuthAngle = THREE.MathUtils.degToRad(80);
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.35;
+    controls.minDistance = 0.85;
+    controls.maxDistance = 2.6;
+    controls.minPolarAngle = THREE.MathUtils.degToRad(55);
+    controls.maxPolarAngle = THREE.MathUtils.degToRad(98);
+    controls.minAzimuthAngle = THREE.MathUtils.degToRad(-85);
+    controls.maxAzimuthAngle = THREE.MathUtils.degToRad(85);
+    controls.autoRotate = false;
     controlsRef.current = controls;
 
     controls.addEventListener('start', () => {
@@ -126,7 +156,7 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
     );
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff7ed, 1.25);
+    const keyLight = new THREE.DirectionalLight(0xfff7ed, 1.30);
     keyLight.position.set(1.8, 2.8, 2.2);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 1024;
@@ -149,13 +179,13 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
     scene.add(driverRoot);
     driverRootRef.current = driverRoot;
 
-    // Soft ground contact shadow
+    // Ground contact shadow
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = 128;
     shadowCanvas.height = 128;
     const shadowCtx = shadowCanvas.getContext('2d');
     if (shadowCtx) {
-      const gradient = shadowCtx.createRadialGradient(64, 64, 8, 64, 64, 62);
+      const gradient = shadowCtx.createRadialGradient(64, 64, 10, 64, 64, 62);
       gradient.addColorStop(0, isDark ? 'rgba(0, 0, 0, 0.42)' : 'rgba(0, 0, 0, 0.22)');
       gradient.addColorStop(0.5, isDark ? 'rgba(0, 0, 0, 0.14)' : 'rgba(0, 0, 0, 0.07)');
       gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -164,7 +194,7 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
     }
     const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
     const shadowPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.6, 1.6),
+      new THREE.PlaneGeometry(1.8, 1.8),
       new THREE.MeshBasicMaterial({
         map: shadowTexture,
         transparent: true,
@@ -172,15 +202,15 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
       })
     );
     shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.position.set(0, 0.01, 0.15);
+    shadowPlane.position.set(0, 0.01, 0.22);
     driverRoot.add(shadowPlane);
 
-    // 7. CAR SEAT (ASIENTO DE AUTO DEPORTIVO)
+    // 7. CAR SEAT (ASIENTO DEPORTIVO ERGONÓMICO)
     const seatGroup = new THREE.Group();
     driverRoot.add(seatGroup);
 
     const seatMat = new THREE.MeshStandardMaterial({
-      color: isDark ? 0x18202f : 0x242d3d, // Matte automotive leather
+      color: isDark ? 0x18202f : 0x242d3d, // Cuero automotriz mate
       roughness: 0.72,
       metalness: 0.08,
     });
@@ -199,10 +229,10 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
 
     // Seat Base Cushion
     const seatCushion = new THREE.Mesh(
-      new RoundedBoxGeometry(0.50, 0.12, 0.54, 4, 0.04),
+      new RoundedBoxGeometry(0.52, 0.12, 0.56, 4, 0.04),
       seatMat
     );
-    seatCushion.position.set(0, 0.50, 0.12);
+    seatCushion.position.set(0, 0.50, 0.08);
     seatCushion.rotation.x = 0.06;
     seatCushion.castShadow = true;
     seatCushion.receiveShadow = true;
@@ -210,68 +240,68 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
 
     // Left and Right Cushion Bolsters
     const leftCushionBolster = new THREE.Mesh(
-      new RoundedBoxGeometry(0.08, 0.14, 0.50, 3, 0.03),
+      new RoundedBoxGeometry(0.08, 0.14, 0.52, 3, 0.03),
       seatAccentMat
     );
-    leftCushionBolster.position.set(-0.24, 0.54, 0.12);
+    leftCushionBolster.position.set(-0.25, 0.54, 0.08);
     leftCushionBolster.rotation.z = -0.15;
     leftCushionBolster.castShadow = true;
     seatGroup.add(leftCushionBolster);
 
     const rightCushionBolster = new THREE.Mesh(
-      new RoundedBoxGeometry(0.08, 0.14, 0.50, 3, 0.03),
+      new RoundedBoxGeometry(0.08, 0.14, 0.52, 3, 0.03),
       seatAccentMat
     );
-    rightCushionBolster.position.set(0.24, 0.54, 0.12);
+    rightCushionBolster.position.set(0.25, 0.54, 0.08);
     rightCushionBolster.rotation.z = 0.15;
     rightCushionBolster.castShadow = true;
     seatGroup.add(rightCushionBolster);
 
-    // Seat Backrest (Ergonomic bucket backrest with lateral support)
+    // Seat Backrest (Ergonomic bucket backrest with lateral lumbar support)
     const seatBackrest = new THREE.Mesh(
-      new RoundedBoxGeometry(0.46, 0.66, 0.14, 5, 0.05),
+      new RoundedBoxGeometry(0.48, 0.70, 0.14, 5, 0.05),
       seatMat
     );
-    seatBackrest.position.set(0, 0.88, -0.09);
-    seatBackrest.rotation.x = -0.11;
+    seatBackrest.position.set(0, 0.88, -0.26);
+    seatBackrest.rotation.x = -0.12;
     seatBackrest.castShadow = true;
     seatBackrest.receiveShadow = true;
     seatGroup.add(seatBackrest);
 
-    // Left and Right Backrest Side Bolsters
+    // Backrest Side Bolsters
     const leftBackBolster = new THREE.Mesh(
-      new RoundedBoxGeometry(0.08, 0.58, 0.18, 3, 0.04),
+      new RoundedBoxGeometry(0.08, 0.62, 0.18, 3, 0.04),
       seatAccentMat
     );
-    leftBackBolster.position.set(-0.24, 0.88, -0.05);
-    leftBackBolster.rotation.x = -0.11;
+    leftBackBolster.position.set(-0.25, 0.88, -0.22);
+    leftBackBolster.rotation.x = -0.12;
     leftBackBolster.rotation.y = -0.22;
     leftBackBolster.castShadow = true;
     seatGroup.add(leftBackBolster);
 
     const rightBackBolster = new THREE.Mesh(
-      new RoundedBoxGeometry(0.08, 0.58, 0.18, 3, 0.04),
+      new RoundedBoxGeometry(0.08, 0.62, 0.18, 3, 0.04),
       seatAccentMat
     );
-    rightBackBolster.position.set(0.24, 0.88, -0.05);
-    rightBackBolster.rotation.x = -0.11;
+    rightBackBolster.position.set(0.25, 0.88, -0.22);
+    rightBackBolster.rotation.x = -0.12;
     rightBackBolster.rotation.y = 0.22;
     rightBackBolster.castShadow = true;
     seatGroup.add(rightBackBolster);
 
     // Chrome Headrest Pillars
     const leftPillar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.009, 0.009, 0.10, 16),
+      new THREE.CylinderGeometry(0.009, 0.009, 0.11, 16),
       chromeMat
     );
-    leftPillar.position.set(-0.08, 1.20, -0.14);
+    leftPillar.position.set(-0.08, 1.20, -0.29);
     seatGroup.add(leftPillar);
 
     const rightPillar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.009, 0.009, 0.10, 16),
+      new THREE.CylinderGeometry(0.009, 0.009, 0.11, 16),
       chromeMat
     );
-    rightPillar.position.set(0.08, 1.20, -0.14);
+    rightPillar.position.set(0.08, 1.20, -0.29);
     seatGroup.add(rightPillar);
 
     // Headrest Cushion
@@ -279,32 +309,31 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
       new RoundedBoxGeometry(0.28, 0.18, 0.10, 4, 0.035),
       seatMat
     );
-    headrest.position.set(0, 1.26, -0.15);
-    headrest.rotation.x = -0.11;
+    headrest.position.set(0, 1.25, -0.28);
+    headrest.rotation.x = -0.12;
     headrest.castShadow = true;
     seatGroup.add(headrest);
 
-    // 8. STEERING WHEEL (VOLANTE DE AUTO DEPORTIVO)
+    // 8. STEERING WHEEL & DASHBOARD COCKPIT (VOLANTE Y CONSOLA DE CABINA)
+    // Steering wheel center measured from both Mixamo wrist bones during Driving.
+    const wheelPivot = new THREE.Group();
+    wheelPivot.position.set(-0.039, 0.93, 0.305);
+    wheelPivot.rotation.x = 0.48;
+    driverRoot.add(wheelPivot);
     const wheelGroup = new THREE.Group();
-    wheelGroup.position.set(0, 0.68, 0.36);
-    wheelGroup.rotation.x = -0.38; // 22° tilt towards driver
-    driverRoot.add(wheelGroup);
+    wheelPivot.add(wheelGroup);
 
     const wheelMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a, // Satin black rim
-      roughness: 0.55,
-      metalness: 0.15,
+      color: 0x090a0c,
+      roughness: 0.88,
+      metalness: 0.02,
     });
 
-    const spokeMat = new THREE.MeshStandardMaterial({
-      color: 0x94a3b8, // Brushed metallic spokes
-      roughness: 0.35,
-      metalness: 0.70,
-    });
+    const spokeMat = wheelMat;
 
-    // Circular Torus Rim
+    // Circular Torus Rim (Radio 0.18 + Grosor 0.017 = Coincide con las manos del modelo)
     const wheelRim = new THREE.Mesh(
-      new THREE.TorusGeometry(0.18, 0.017, 20, 48),
+      new THREE.TorusGeometry(0.191, 0.018, 16, 48),
       wheelMat
     );
     wheelRim.castShadow = true;
@@ -327,111 +356,118 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
     wheelBadge.position.set(0, 0, 0.012);
     wheelGroup.add(wheelBadge);
 
-    // Spokes
+    // Three lower spokes leave the left/right grip points clear for the hands.
     const spokeLeft = new THREE.Mesh(
-      new RoundedBoxGeometry(0.13, 0.020, 0.012, 3, 0.003),
+      new RoundedBoxGeometry(0.18, 0.028, 0.024, 3, 0.005),
       spokeMat
     );
-    spokeLeft.position.set(-0.088, 0, 0);
+    spokeLeft.position.set(-0.062, -0.062, 0);
+    spokeLeft.rotation.z = -Math.PI * 0.75;
     wheelGroup.add(spokeLeft);
 
     const spokeRight = new THREE.Mesh(
-      new RoundedBoxGeometry(0.13, 0.020, 0.012, 3, 0.003),
+      new RoundedBoxGeometry(0.18, 0.028, 0.024, 3, 0.005),
       spokeMat
     );
-    spokeRight.position.set(0.088, 0, 0);
+    spokeRight.position.set(0.062, -0.062, 0);
+    spokeRight.rotation.z = -Math.PI * 0.25;
     wheelGroup.add(spokeRight);
 
     const spokeBottom = new THREE.Mesh(
-      new RoundedBoxGeometry(0.018, 0.11, 0.012, 3, 0.003),
+      new RoundedBoxGeometry(0.028, 0.18, 0.024, 3, 0.005),
       spokeMat
     );
     spokeBottom.position.set(0, -0.088, 0);
     wheelGroup.add(spokeBottom);
 
-    // Steering Column Tube
-    const column = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.028, 0.035, 0.35, 16),
+    // Dashboard Console Hood & Sensor Module
+    const dashHood = new THREE.Mesh(
+      new RoundedBoxGeometry(0.62, 0.07, 0.18, 4, 0.02),
       seatAccentMat
     );
-    column.position.set(0, 0, -0.16);
-    column.rotation.x = Math.PI / 2;
-    wheelGroup.add(column);
+    dashHood.position.set(-0.05, 0.59, 0.48);
+    dashHood.castShadow = true;
+    dashHood.receiveShadow = true;
+    driverRoot.add(dashHood);
 
-    // 9. LOAD MIXAMO CHARACTER (Y-BOT SITTING IDLE)
+    // Telemetry SW-520D Sensor Case on Dashboard
+    const sensorHousing = new THREE.Mesh(
+      new RoundedBoxGeometry(0.09, 0.035, 0.06, 3, 0.008),
+      new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.4,
+        metalness: 0.6,
+      })
+    );
+    sensorHousing.position.set(-0.05, 0.63, 0.49);
+    driverRoot.add(sensorHousing);
+
+    // Real-time Visual Status LED on the Cockpit Dash
+    const sensorLedMat = new THREE.MeshStandardMaterial({
+      color: 0x10b981,
+      emissive: 0x059669,
+      emissiveIntensity: 0.8,
+      roughness: 0.2,
+    });
+    sensorLedMatRef.current = sensorLedMat;
+
+    const sensorLed = new THREE.Mesh(
+      new THREE.SphereGeometry(0.011, 16, 16),
+      sensorLedMat
+    );
+    sensorLed.position.set(-0.05, 0.655, 0.49);
+    driverRoot.add(sensorLed);
+
+    // 9. LOAD MIXAMO DRIVING CHARACTER (/models/driving.fbx)
     const fbxLoader = new FBXLoader();
     fbxLoader.load(
-      '/models/sitting_idle.fbx',
+      '/models/driving.fbx',
       (fbx) => {
-        // Scale to metric units
+        // Metric scale (0.01 conversion for Mixamo FBX centimeters)
         fbx.scale.set(0.01, 0.01, 0.01);
         fbx.position.set(0, 0, 0);
 
         // Enhance materials & enable shadows
+        leftGripBonesRef.current = [];
+        rightGripBonesRef.current = [];
         fbx.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-            const isJoint = child.name.toLowerCase().includes('joint');
-            if (isJoint) {
-              child.material = new THREE.MeshStandardMaterial({
-                color: isDark ? 0x1e293b : 0x334155, // Dark graphite joints
-                roughness: 0.38,
-                metalness: 0.70,
-              });
-            } else {
-              // Main body plates (Sleek titanium/slate driving mannequin)
-              child.material = new THREE.MeshStandardMaterial({
-                color: isDark ? 0x94a3b8 : 0x64748b, // High-end automotive clay/titanium
-                roughness: 0.52,
-                metalness: 0.18,
-              });
-            }
+            child.material = new THREE.MeshStandardMaterial({
+              color: isDark ? 0x94a3b8 : 0x64748b,
+              roughness: 0.52,
+              metalness: 0.18,
+            });
           }
           if (child instanceof THREE.Bone) {
             const name = child.name;
-            if (name.includes('Head') && !name.includes('End')) {
+            if (name.includes('Head') && !name.includes('End') && !name.includes('Top')) {
               headBoneRef.current = child;
             }
-            if (name.includes('LeftArm') && !name.includes('Fore')) {
-              leftArmRef.current = child;
+            if (name.includes('Neck')) {
+              neckBoneRef.current = child;
             }
-            if (name.includes('LeftForeArm')) {
-              leftForeArmRef.current = child;
+            if (name.includes('Spine2')) {
+              spine2BoneRef.current = child;
             }
-            if (name.includes('LeftHand') && !name.includes('Thumb') && !name.includes('Index') && !name.includes('Middle') && !name.includes('Ring') && !name.includes('Pinky')) {
-              leftHandRef.current = child;
-            }
-            if (name.includes('RightArm') && !name.includes('Fore')) {
-              rightArmRef.current = child;
-            }
-            if (name.includes('RightForeArm')) {
-              rightForeArmRef.current = child;
-            }
-            if (name.includes('RightHand') && !name.includes('Thumb') && !name.includes('Index') && !name.includes('Middle') && !name.includes('Ring') && !name.includes('Pinky')) {
-              rightHandRef.current = child;
-            }
+            if (name.includes('LeftShoulder')) leftShoulderRef.current = child;
+            if (name.includes('RightShoulder')) rightShoulderRef.current = child;
+            if (name.includes('LeftHand') && !/(Thumb|Index|Middle|Ring|Pinky)/.test(name)) leftHandRef.current = child;
+            if (name.includes('RightHand') && !/(Thumb|Index|Middle|Ring|Pinky)/.test(name)) rightHandRef.current = child;
+            if (/LeftHand(?:Index|Middle|Ring|Pinky)1$/.test(name)) leftGripBonesRef.current.push(child);
+            if (/RightHand(?:Index|Middle|Ring|Pinky)1$/.test(name)) rightGripBonesRef.current.push(child);
           }
         });
 
-        console.log('INIT BONES FOUND JSON:', JSON.stringify({
-          head: headBoneRef.current?.name,
-          leftArm: leftArmRef.current?.name,
-          leftForeArm: leftForeArmRef.current?.name,
-          rightArm: rightArmRef.current?.name,
-          rightForeArm: rightForeArmRef.current?.name,
-          leftArmRot: leftArmRef.current ? [leftArmRef.current.rotation.x, leftArmRef.current.rotation.y, leftArmRef.current.rotation.z] : null,
-          headRot: headBoneRef.current ? [headBoneRef.current.rotation.x, headBoneRef.current.rotation.y, headBoneRef.current.rotation.z] : null,
-        }));
+        targetsRef.current.baseHead.copy(headBoneRef.current?.quaternion ?? new THREE.Quaternion());
+        targetsRef.current.baseNeck.copy(neckBoneRef.current?.quaternion ?? new THREE.Quaternion());
+        targetsRef.current.baseSpine.copy(spine2BoneRef.current?.quaternion ?? new THREE.Quaternion());
+        targetsRef.current.baseLeftShoulder.copy(leftShoulderRef.current?.quaternion ?? new THREE.Quaternion());
+        targetsRef.current.baseRightShoulder.copy(rightShoulderRef.current?.quaternion ?? new THREE.Quaternion());
 
-        // Initialize AnimationMixer with Sitting Idle motion
+        // Initialize AnimationMixer with Driving animation
         if (fbx.animations && fbx.animations.length > 0) {
-          const leftArmTrack = fbx.animations[0].tracks.find(t => t.name.includes('LeftArm.quaternion'));
-          const leftForeTrack = fbx.animations[0].tracks.find(t => t.name.includes('LeftForeArm.quaternion'));
-          console.log('TRACK VALUES:', JSON.stringify({
-            leftArm: leftArmTrack ? Array.from(leftArmTrack.values.slice(0, 4)) : null,
-            leftFore: leftForeTrack ? Array.from(leftForeTrack.values.slice(0, 4)) : null,
-          }));
           const mixer = new THREE.AnimationMixer(fbx);
           const action = mixer.clipAction(fbx.animations[0]);
           action.play();
@@ -439,18 +475,19 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
         }
 
         driverRoot.add(fbx);
+        driverRoot.updateMatrixWorld(true);
         setIsLoadingModel(false);
         fitCameraToModel();
       },
       undefined,
       (err) => {
-        console.error('Error loading Mixamo FBX model:', err);
+        console.error('Error loading Mixamo Driving FBX model:', err);
         setIsLoadingModel(false);
       }
     );
 
-    // 10. DYNAMIC BOUNDING BOX AUTO-FRAMING (15% MARGIN ON ALL SIDES)
-    const fitCameraToModel = () => {
+    // 10. DYNAMIC BOUNDING BOX AUTO-FRAMING
+    const fitCameraToModel = (preservePose = false) => {
       if (!container || !cameraRef.current || !controlsRef.current) return;
       const cam = cameraRef.current;
       const ctrl = controlsRef.current;
@@ -460,49 +497,47 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
       const aspect = w / h;
       cam.aspect = aspect;
 
-      const box = new THREE.Box3().setFromObject(driverRoot);
-      const size = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      box.getSize(size);
-      box.getCenter(center);
+      // Focus camera on driver upper cockpit center
+      const targetX = -0.02;
+      const targetY = 0.82;
+      const targetZ = 0.18;
+      if (!preservePose) {
+        ctrl.target.set(targetX, targetY, targetZ);
+        targetLookAt.current.copy(ctrl.target);
+      }
 
-      // Focus camera on driver cockpit center
-      const targetY = THREE.MathUtils.clamp(center.y + 0.12, 0.70, 0.88);
-      ctrl.target.set(0, targetY, 0.15);
-      targetLookAt.current.copy(ctrl.target);
-
-      const marginFactor = 1.30;
-      const modelHeight = size.y * marginFactor;
-      const modelWidth = size.x * marginFactor;
-
-      const fovRad = THREE.MathUtils.degToRad(cam.fov);
-      const distVertical = modelHeight / (2 * Math.tan(fovRad / 2));
-      const distHorizontal = modelWidth / (2 * Math.tan(fovRad / 2) * aspect);
-      const targetDist = Math.max(distVertical, distHorizontal) * 0.95 + size.z * 0.25;
+      // Auto framed distance for ergonomic cockpit visibility
+      const bounds = new THREE.Box3().setFromObject(driverRoot);
+      if (bounds.isEmpty()) bounds.set(new THREE.Vector3(-0.36, 0.25, -0.4), new THREE.Vector3(0.36, 1.92, 0.8));
+      const size = bounds.getSize(new THREE.Vector3());
+      const fitHeight = Math.max(size.y, size.x / aspect) * 1.42;
+      const targetDist = Math.max(fitHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))), 1.35) + size.z * 0.24;
 
       const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
       const urlAngle = params ? params.get('angle') : null;
 
-      let camX = targetDist * Math.sin(0.42);
-      const camY = targetY + 0.18;
-      let camZ = targetDist * Math.cos(0.42);
+      let camX = targetX + targetDist * Math.sin(0.48);
+      const camY = targetY + 0.16;
+      let camZ = targetZ + targetDist * Math.cos(0.48);
 
       if (urlAngle === 'front' || urlAngle === 'frontal') {
-        camX = 0.0;
-        camZ = targetDist;
+        camX = targetX;
+        camZ = targetZ + targetDist;
       } else if (urlAngle === '3/4-izq' || urlAngle === 'left') {
-        camX = -targetDist * Math.sin(0.46);
-        camZ = targetDist * Math.cos(0.46);
+        camX = targetX - targetDist * Math.sin(0.48);
+        camZ = targetZ + targetDist * Math.cos(0.48);
       } else if (urlAngle === '3/4-der' || urlAngle === 'right') {
-        camX = targetDist * Math.sin(0.46);
-        camZ = targetDist * Math.cos(0.46);
+        camX = targetX + targetDist * Math.sin(0.48);
+        camZ = targetZ + targetDist * Math.cos(0.48);
       } else if (urlAngle === 'lateral' || urlAngle === 'side') {
-        camX = targetDist * Math.sin(0.92);
-        camZ = targetDist * Math.cos(0.92);
+        camX = targetX + targetDist * Math.sin(1.05);
+        camZ = targetZ + targetDist * Math.cos(1.05);
       }
 
-      cam.position.set(camX, camY, camZ);
-      initialCamPos.current.set(camX, camY, camZ);
+      if (!preservePose) {
+        cam.position.set(camX, camY, camZ);
+        initialCamPos.current.set(camX, camY, camZ);
+      }
 
       if (urlAngle) {
         ctrl.autoRotate = false;
@@ -515,9 +550,15 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
 
     fitCameraToModel();
 
-    // 11. ANIMATION RENDER LOOP (Mixamo Mixer + Telemetric Cervical Pitch Kinematics)
+    // 11. CONTINUOUS ANIMATION LOOP (Mixamo Driving + Organic Drowsiness Kinematics)
     let animationFrameId: number;
     let lastTime = performance.now();
+    // This FBX faces +Z; local X is the measured forward/back nod axis.
+    const pitchAxis = new THREE.Vector3(1, 0, 0);
+    const leftWheelHand = new THREE.Vector3();
+    const rightWheelHand = new THREE.Vector3();
+    const wheelHandMidpoint = new THREE.Vector3();
+    const wheelHandOffset = new THREE.Vector3();
 
     const animate = (currentTime: number) => {
       animationFrameId = requestAnimationFrame(animate);
@@ -525,69 +566,161 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
       const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
       lastTime = currentTime;
 
-      // 1. Update Mixamo skeleton animation mixer
+      // 1. Advance base Mixamo driving animation seamlessly (NEVER resets)
       if (mixerRef.current) {
         mixerRef.current.update(delta);
       }
 
-      // Pose arms up to steering wheel (Driving Posture - Manos arriba manejando a las 10 y 2)
-      if (leftArmRef.current) {
-        const qArm = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.28, -0.25, -0.35));
-        leftArmRef.current.quaternion.multiply(qArm);
-      }
-      if (leftForeArmRef.current) {
-        const qFore = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.10, 0.15, 0.30));
-        leftForeArmRef.current.quaternion.multiply(qFore);
-      }
-      if (leftHandRef.current) {
-        const qHand = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, 0.20, 0.25));
-        leftHandRef.current.quaternion.multiply(qHand);
+      // Keep the grip points on the animated wrists through the Driving loop.
+      if (leftHandRef.current && rightHandRef.current) {
+        const leftGripBones = leftGripBonesRef.current;
+        const rightGripBones = rightGripBonesRef.current;
+        if (leftGripBones.length && rightGripBones.length) {
+          leftWheelHand.set(0, 0, 0);
+          rightWheelHand.set(0, 0, 0);
+          leftGripBones.forEach((bone) => {
+            bone.getWorldPosition(wheelHandOffset);
+            leftWheelHand.add(wheelHandOffset);
+          });
+          rightGripBones.forEach((bone) => {
+            bone.getWorldPosition(wheelHandOffset);
+            rightWheelHand.add(wheelHandOffset);
+          });
+          leftWheelHand.multiplyScalar(1 / leftGripBones.length);
+          rightWheelHand.multiplyScalar(1 / rightGripBones.length);
+        } else {
+          leftHandRef.current.getWorldPosition(leftWheelHand);
+          rightHandRef.current.getWorldPosition(rightWheelHand);
+        }
+        driverRoot.worldToLocal(leftWheelHand);
+        driverRoot.worldToLocal(rightWheelHand);
+        wheelHandMidpoint.addVectors(leftWheelHand, rightWheelHand).multiplyScalar(0.5);
+        wheelPivot.position.copy(wheelHandMidpoint);
+
+        const handSpanX = leftWheelHand.x - rightWheelHand.x;
+        const handSpanY = leftWheelHand.y - rightWheelHand.y;
+        const handSpan = Math.hypot(handSpanX, handSpanY);
+        wheelGroup.scale.setScalar(THREE.MathUtils.clamp(handSpan / 0.382, 0.94, 1.06));
+        wheelPivot.rotation.z = Math.atan2(handSpanY, handSpanX);
       }
 
-      if (rightArmRef.current) {
-        const qArm = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.28, 0.25, 0.35));
-        rightArmRef.current.quaternion.multiply(qArm);
-      }
-      if (rightForeArmRef.current) {
-        const qFore = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.10, -0.15, -0.30));
-        rightForeArmRef.current.quaternion.multiply(qFore);
-      }
-      if (rightHandRef.current) {
-        const qHand = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, -0.20, -0.25));
-        rightHandRef.current.quaternion.multiply(qHand);
+      // 2. Compute dynamic biological kinematics for drowsiness states
+      const {
+        targetHeadPitch,
+        targetNeckPitch,
+        targetSpinePitch,
+        isAlert,
+        status,
+      } = targetsRef.current;
+
+      let dynamicHeadPitch = targetHeadPitch;
+      let dynamicSpinePitch = targetSpinePitch;
+      const globalSeconds = currentTime / 1000;
+
+      if (isAlert) {
+        // Estado Crítico: Respiración profunda y pesada de conductor dormido
+        const sleepBreath = Math.sin(globalSeconds * 1.1) * THREE.MathUtils.degToRad(1.4);
+        dynamicHeadPitch += sleepBreath;
+        dynamicSpinePitch += sleepBreath * 0.25;
+        dynamicHeadPitch -= Math.pow(Math.max(0, Math.sin(globalSeconds * 0.32)), 14) * THREE.MathUtils.degToRad(6);
+      } else if (status === 'INCLINADO') {
+        // Estado Leve: Cabeceo oscilatorio (microsueño / lucha por mantenerse despierto)
+        const nodBob = Math.sin(globalSeconds * 1.2) * THREE.MathUtils.degToRad(2.0);
+        dynamicHeadPitch += nodBob;
       }
 
-      // 2. Apply Telemetric Head Kinematics (STRICTLY head pitch, simulating nodding asleep)
-      const easeSpeed = delta * 5.0;
+      // 4. Smooth exponential lerp transition across states (NO cuts, NO stutters)
+      const smoothFactor = 1.0 - Math.exp(-delta * 4);
       targetsRef.current.currentHeadPitch = THREE.MathUtils.lerp(
         targetsRef.current.currentHeadPitch,
-        targetsRef.current.headPitch,
-        easeSpeed
+        dynamicHeadPitch,
+        smoothFactor
       );
+      targetsRef.current.currentNeckPitch = THREE.MathUtils.lerp(
+        targetsRef.current.currentNeckPitch,
+        targetNeckPitch,
+        smoothFactor
+      );
+      targetsRef.current.currentSpinePitch = THREE.MathUtils.lerp(
+        targetsRef.current.currentSpinePitch,
+        dynamicSpinePitch,
+        smoothFactor
+      );
+      targetsRef.current.totalPitch = targetsRef.current.currentHeadPitch + targetsRef.current.currentNeckPitch;
 
-      if (headBoneRef.current) {
-        // Pure forward pitch on head bone, strictly simulating nodding off to sleep
-        const headNodQ = new THREE.Quaternion().setFromAxisAngle(
-          new THREE.Vector3(1, 0, 0),
-          targetsRef.current.currentHeadPitch
+      const shoulderTarget = isAlert ? THREE.MathUtils.degToRad(7) : status === 'INCLINADO' ? THREE.MathUtils.degToRad(3) : 0;
+      targetsRef.current.currentShoulderDrop += (shoulderTarget - targetsRef.current.currentShoulderDrop) * smoothFactor;
+
+      // 5. Apply anatomical pitch rotations to spine, neck, and head bones
+      if (spine2BoneRef.current) {
+        const qSpine = new THREE.Quaternion().setFromAxisAngle(
+          pitchAxis,
+          targetsRef.current.currentSpinePitch
         );
-        headBoneRef.current.quaternion.multiply(headNodQ);
+        spine2BoneRef.current.quaternion.copy(targetsRef.current.baseSpine).multiply(qSpine);
       }
 
-      // Update Pitch badge in real-time
-      const deg = Math.round(THREE.MathUtils.radToDeg(targetsRef.current.currentHeadPitch));
-      setCurrentPitch(Math.abs(deg) === 0 ? 0 : deg);
+      if (neckBoneRef.current) {
+        const qNeck = new THREE.Quaternion().setFromAxisAngle(
+          pitchAxis,
+          targetsRef.current.currentNeckPitch
+        );
+        neckBoneRef.current.quaternion.copy(targetsRef.current.baseNeck).multiply(qNeck);
+      }
 
-      // 3. Update controls and render
+      if (headBoneRef.current) {
+        const qHead = new THREE.Quaternion().setFromAxisAngle(
+          pitchAxis,
+          targetsRef.current.currentHeadPitch
+        );
+        headBoneRef.current.quaternion.copy(targetsRef.current.baseHead).multiply(qHead);
+      }
+      if (leftShoulderRef.current) leftShoulderRef.current.quaternion.copy(targetsRef.current.baseLeftShoulder).multiply(new THREE.Quaternion().setFromAxisAngle(pitchAxis, targetsRef.current.currentShoulderDrop));
+      if (rightShoulderRef.current) rightShoulderRef.current.quaternion.copy(targetsRef.current.baseRightShoulder).multiply(new THREE.Quaternion().setFromAxisAngle(pitchAxis, targetsRef.current.currentShoulderDrop));
+
+      // 6. Update dashboard LED indicator to match telemetry mode in real time
+      if (sensorLedMatRef.current) {
+        if (isAlert) {
+          const pulse = 0.55 + 0.45 * Math.sin(currentTime * 0.008);
+          sensorLedMatRef.current.color.setRGB(1.0 * pulse, 0.1, 0.1);
+          sensorLedMatRef.current.emissive.setRGB(0.9 * pulse, 0.05, 0.05);
+        } else if (status === 'INCLINADO') {
+          sensorLedMatRef.current.color.setRGB(0.95, 0.70, 0.10);
+          sensorLedMatRef.current.emissive.setRGB(0.85, 0.55, 0.05);
+        } else {
+          sensorLedMatRef.current.color.setRGB(0.06, 0.85, 0.45);
+          sensorLedMatRef.current.emissive.setRGB(0.04, 0.60, 0.30);
+        }
+      }
+
+      // 7. Update UI Pitch badge in real time (throttled to integer degrees)
+      const deg = Math.round(THREE.MathUtils.radToDeg(targetsRef.current.totalPitch));
+      if (deg !== lastReportedPitchRef.current) {
+        lastReportedPitchRef.current = deg;
+        setCurrentPitch(deg);
+      }
+
+      // 8. Update controls & render scene
       controls.update();
       renderer.render(scene, camera);
     };
 
     animationFrameId = requestAnimationFrame(animate);
 
-    // 12. RESIZE OBSERVER
-    const resizeObserver = new ResizeObserver(() => fitCameraToModel());
+    // 12. OBSERVERS (Resize & Dark Mode Class Change)
+    const resizeObserver = new ResizeObserver(() => fitCameraToModel(true));
     resizeObserver.observe(container);
+
+    const handleThemeChange = () => {
+      const darkNow = document.documentElement.classList.contains('dark');
+      scene.background = new THREE.Color(darkNow ? 0x0f1422 : 0xf4f0e8);
+      renderer.toneMappingExposure = darkNow ? 1.15 : 1.05;
+      hemiLight.color.set(darkNow ? 0xcfd8dc : 0xffffff);
+      hemiLight.groundColor.set(darkNow ? 0x1e293b : 0xe2e8f0);
+    };
+
+    const themeObserver = new MutationObserver(handleThemeChange);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -604,6 +737,7 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
       cancelAnimationFrame(animationFrameId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       resizeObserver.disconnect();
+      themeObserver.disconnect();
       controls.dispose();
 
       scene.traverse((obj) => {
@@ -619,7 +753,7 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
       shadowTexture.dispose();
       renderer.dispose();
     };
-  }, [filteredStatus, isAlertActive]);
+  }, []); // Run ONCE on mount so scene & animation never restart when status changes
 
   // Smooth camera reset
   const handleResetCamera = useCallback(() => {
@@ -645,7 +779,7 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
         requestAnimationFrame(animateReset);
       } else {
         setIsUserInteracting(false);
-        controls.autoRotate = true;
+        controls.autoRotate = false;
       }
     };
 
@@ -667,7 +801,7 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
         <div className="absolute inset-0 z-20 bg-slate-900/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
           <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
           <span className="text-xs font-mono font-medium text-slate-200">
-            Cargando Mixamo Y-Bot & Cockpit...
+            Cargando Mixamo Driving Y-Bot & Cockpit...
           </span>
         </div>
       )}
@@ -675,21 +809,6 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
       {/* Top Overlay HUD Bar */}
       <div className="absolute top-3.5 left-4 right-4 z-10 flex items-center justify-between pointer-events-none gap-2">
         <div className="flex items-center gap-2 pointer-events-auto flex-wrap">
-          {/* Live 3D Badge */}
-          <div className="px-3 py-1.5 rounded-full bg-white/85 dark:bg-black/75 border border-black/10 dark:border-white/15 backdrop-blur-md flex items-center gap-2 shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                isAlertActive ? 'bg-red-400' : filteredStatus === 'INCLINADO' ? 'bg-amber-400' : 'bg-emerald-400'
-              }`}></span>
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                isAlertActive ? 'bg-red-500' : filteredStatus === 'INCLINADO' ? 'bg-amber-500' : 'bg-emerald-500'
-              }`}></span>
-            </span>
-            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-              Conductor Mixamo 3D
-            </span>
-          </div>
-
           {/* Real-time Pitch Angle Badge */}
           <div className="px-3 py-1.5 rounded-full bg-white/85 dark:bg-black/75 border border-black/10 dark:border-white/15 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
             <Compass className="w-3.5 h-3.5 text-cyan-500" />
@@ -746,10 +865,6 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
         <span className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-black/70 backdrop-blur-md border border-black/5 dark:border-white/10 shadow-sm">
           Arrastra para rotar &bull; Rueda para zoom
         </span>
-        <span className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-black/70 backdrop-blur-md border border-black/5 dark:border-white/10 shadow-sm font-mono text-[10px] flex items-center gap-1.5">
-          <Radio className="w-3 h-3 text-cyan-500" />
-          Sensor SW-520D Activo
-        </span>
       </div>
 
       {/* Confirmation Window Progress Line */}
@@ -768,4 +883,3 @@ export const Driver3DView: React.FC<Driver3DViewProps> = ({
     </div>
   );
 };
-

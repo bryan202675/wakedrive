@@ -20,104 +20,97 @@ export const MetricsGrid: React.FC<MetricsGridProps> = ({
   isAlertActive,
 }) => {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {/* 1. Raw Pin Metric */}
-      <div className="rounded-2xl bg-surface-lightCard dark:bg-surface-darkCard border border-surface-lightBorder dark:border-surface-darkBorder p-4 shadow-lg transition-all hover:border-cyan-500/40 relative overflow-hidden">
-        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-          <span className="text-xs font-mono font-medium uppercase tracking-wider">Sensor D0 Crudo</span>
-          <Cpu className="w-4 h-4 text-cyan-500" />
+      <div className="squircle-card p-4 flex flex-col justify-between">
+        <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider">Sensor D0</span>
+          <Cpu className="w-4 h-4 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} />
         </div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold font-mono text-slate-800 dark:text-slate-100">
-            {rawReading}
-          </span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-            rawReading === 0
-              ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-              : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-          }`}>
-            {rawReading === 0 ? 'LOW (Activo)' : 'HIGH (Reposo)'}
-          </span>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono text-zinc-900 dark:text-white">
+              {rawReading}
+            </span>
+            <span className="text-xs font-mono text-zinc-500 flex items-center gap-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${rawReading === 0 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+              {rawReading === 0 ? 'LOW' : 'HIGH'}
+            </span>
+          </div>
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 truncate">
+            {rawReading === 0 ? 'Inclinación física detectada' : 'Posición vertical erguida'}
+          </p>
         </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 truncate">
-          {rawReading === 0 ? 'Detección física de inclinación' : 'Posición vertical erguida'}
-        </p>
       </div>
 
       {/* 2. Filtered State */}
-      <div className="rounded-2xl bg-surface-lightCard dark:bg-surface-darkCard border border-surface-lightBorder dark:border-surface-darkBorder p-4 shadow-lg transition-all hover:border-emerald-500/40 relative overflow-hidden">
-        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-          <span className="text-xs font-mono font-medium uppercase tracking-wider">Filtro Anti-Rebote</span>
-          <Gauge className="w-4 h-4 text-emerald-500" />
+      <div className="squircle-card p-4 flex flex-col justify-between">
+        <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider">Filtro (300ms)</span>
+          <Gauge className="w-4 h-4 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} />
         </div>
-        <div className="flex items-baseline gap-2">
-          <span className={`text-2xl font-black tracking-tight ${
-            filteredStatus === 'ERGUIDO'
-              ? 'text-emerald-500 dark:text-emerald-400'
-              : 'text-amber-500 dark:text-amber-400'
-          }`}>
-            {filteredStatus}
-          </span>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-xl font-bold tracking-tight ${
+              filteredStatus === 'ERGUIDO'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400'
+            }`}>
+              {filteredStatus}
+            </span>
+          </div>
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 truncate">
+            {filteredStatus === 'ERGUIDO' ? 'Estabilidad normal' : 'Cabeceo sostenido'}
+          </p>
         </div>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
-          {filteredStatus === 'ERGUIDO' ? 'Estabilidad confirmada (300ms)' : 'Cabeceo sostenido en progreso'}
-        </p>
       </div>
 
       {/* 3. Confirmation Progress (1500ms) */}
-      <div className={`rounded-2xl bg-surface-lightCard dark:bg-surface-darkCard border p-4 shadow-lg transition-all relative overflow-hidden ${
-        isAlertActive
-          ? 'border-red-500/80 bg-red-500/5 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
-          : 'border-surface-lightBorder dark:border-surface-darkBorder'
-      }`}>
-        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-          <span className="text-xs font-mono font-medium uppercase tracking-wider">Ventana de Confirmación</span>
-          <Timer className={`w-4 h-4 ${isAlertActive ? 'text-red-500 animate-spin' : 'text-amber-500'}`} />
+      <div className="squircle-card p-4 flex flex-col justify-between">
+        <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider">Ventana</span>
+          <Timer className={`w-4 h-4 ${isAlertActive ? 'text-red-500' : 'text-zinc-400 dark:text-zinc-500'}`} strokeWidth={1.75} />
         </div>
-        <div className="flex items-baseline justify-between">
-          <span className="text-2xl font-black font-mono text-slate-800 dark:text-slate-100">
-            {confirmationProgress}%
-          </span>
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-            1.5s Umbral
-          </span>
-        </div>
-        {/* Visual Progress Bar */}
-        <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-3">
-          <div
-            className={`h-full transition-all duration-100 rounded-full ${
-              isAlertActive
-                ? 'bg-red-500'
-                : confirmationProgress > 0
-                ? 'bg-amber-400'
-                : 'bg-emerald-500'
-            }`}
-            style={{ width: `${confirmationProgress}%` }}
-          />
+        <div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-xl font-bold font-mono text-zinc-900 dark:text-white">
+              {confirmationProgress}%
+            </span>
+            <span className="text-xs font-mono text-zinc-400">
+              1.5s
+            </span>
+          </div>
+          <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden mt-2">
+            <div
+              className={`h-full rounded-full transition-all duration-100 ${
+                isAlertActive
+                  ? 'bg-red-500'
+                  : confirmationProgress > 0
+                  ? 'bg-amber-500'
+                  : 'bg-zinc-300 dark:bg-zinc-700'
+              }`}
+              style={{ width: `${confirmationProgress}%` }}
+            />
+          </div>
         </div>
       </div>
 
       {/* 4. Session Time & Incident Count */}
-      <div className="rounded-2xl bg-surface-lightCard dark:bg-surface-darkCard border border-surface-lightBorder dark:border-surface-darkBorder p-4 shadow-lg transition-all hover:border-purple-500/40 relative overflow-hidden">
-        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-          <span className="text-xs font-mono font-medium uppercase tracking-wider">Sesión y Alertas</span>
-          <Clock className="w-4 h-4 text-purple-500" />
+      <div className="squircle-card p-4 flex flex-col justify-between">
+        <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider">Sesión</span>
+          <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500" strokeWidth={1.75} />
         </div>
         <div className="flex items-baseline justify-between">
           <div>
-            <span className="text-xl font-bold font-mono text-slate-800 dark:text-slate-100">
+            <span className="text-xl font-semibold font-mono text-zinc-900 dark:text-white tabular-nums">
               {sessionTimeFormatted}
             </span>
-            <span className="block text-[10px] text-slate-500 uppercase tracking-wider font-mono">Tiempo Activo</span>
           </div>
           <div className="text-right">
-            <div className="flex items-center gap-1 justify-end">
-              <ShieldAlert className={`w-3.5 h-3.5 ${alertCount > 0 ? 'text-red-500' : 'text-slate-400'}`} />
-              <span className={`text-xl font-extrabold font-mono ${alertCount > 0 ? 'text-red-500' : 'text-slate-400'}`}>
-                {alertCount}
-              </span>
-            </div>
-            <span className="block text-[10px] text-slate-500 uppercase tracking-wider font-mono">Incidentes</span>
+            <span className={`text-sm font-bold font-mono tabular-nums ${alertCount > 0 ? 'text-red-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
+              {alertCount} {alertCount === 1 ? 'alerta' : 'alertas'}
+            </span>
           </div>
         </div>
       </div>

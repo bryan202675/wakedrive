@@ -79,10 +79,10 @@ export const App: React.FC = () => {
       ? [
           {
             id: 'evt-init-1',
-            timestamp: new Date().toLocaleTimeString('es-SV', { hour12: false }),
-            anomalyType: 'Somnolencia Sostenida',
+            time: new Date().toLocaleTimeString('es-SV', { hour12: false }),
+            event: 'Somnolencia Sostenida',
             duration: 'Activa',
-            countermeasures: 'Buzzer (Pin 8) + Vibrador (Pin 9)',
+            action: 'Buzzer (Pin 8) + Vibrador (Pin 9)',
             severity: 'critical'
           }
         ]
@@ -158,16 +158,17 @@ export const App: React.FC = () => {
         if (elapsedTilt >= 1500) {
           setIsAlertActive(true);
           startAlarm();
-          triggerAlertNotification(
-            '⚠️ ¡WAKEDRIVE: CABECEO SOSTENIDO DETECTADO!',
-            'El conductor de la Unidad #04 presenta somnolencia crítica (>1.5s). Actuadores activados en cabina.'
-          );
 
           if (!incidentActiveRef.current) {
             incidentActiveRef.current = true;
             incidentStartRef.current = Date.now();
             setAlertCount((c) => c + 1);
             addIncidentEvent('Somnolencia', 'Activa', 'Buzzer (Pin 8) + Motor (Pin 9)', 'critical');
+
+            triggerAlertNotification(
+              '🚨 ¡ALERTA: SOMNOLENCIA DETECTADA EN CONDUCTOR!',
+              'El conductor presenta cabeceo sostenido (>1.5s). Actuadores de cabina disparados.'
+            );
           }
         }
       } else {
@@ -237,16 +238,26 @@ export const App: React.FC = () => {
 
   const simulateInclinado = useCallback(() => {
     addTerminalLine('> Simulación: Crudo: 0   Filtrado: INCLINADO');
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      requestPermission();
+    }
     handleDataParsed(0, 'INCLINADO');
     playTone(440, 0.08);
-  }, [addTerminalLine, handleDataParsed, playTone]);
+  }, [addTerminalLine, handleDataParsed, playTone, requestPermission]);
 
   const simulateAlertaInmediata = useCallback(() => {
     addTerminalLine('> Simulación: Crudo: 0   Filtrado: INCLINADO (Umbral > 1.5s Forzado)');
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      requestPermission();
+    }
     setTiltStartTime(Date.now() - 1600);
     setRawReading(0);
     setFilteredStatus('INCLINADO');
-  }, [addTerminalLine]);
+    triggerAlertNotification(
+      '🚨 ¡ALERTA: SOMNOLENCIA DETECTADA EN CONDUCTOR!',
+      'El conductor presenta cabeceo sostenido (>1.5s). Actuadores de cabina disparados.'
+    );
+  }, [addTerminalLine, requestPermission, triggerAlertNotification]);
 
   const resetStats = useCallback(() => {
     setAlertCount(0);
@@ -269,8 +280,16 @@ export const App: React.FC = () => {
   }, [simulateInclinado, simulateAlertaInmediata]);
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-ambient-dark' : 'bg-ambient-light'} transition-colors duration-300 flex justify-center text-slate-800 dark:text-zinc-100 overflow-x-hidden selection:bg-lime-400 selection:text-black`}>
-      <div className="w-full max-w-[1680px] flex min-h-screen">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-ambient-dark' : 'bg-ambient-light'} transition-colors duration-300 flex justify-center text-zinc-900 dark:text-zinc-100 overflow-x-hidden selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-zinc-900`}>
+      {/* Floating Emergency Toast Notification (Upper-Right macOS style) */}
+      <AlertBanner
+        isActive={isAlertActive}
+        onDismiss={() => {
+          addTerminalLine('// Notificación visual de cabecera descartada por el operador.');
+        }}
+      />
+
+      <div className="w-full max-w-[1600px] flex min-h-screen">
         {/* 1. Left Slim Sidebar Rail (Desktop md+) */}
         <SidebarRail
           activeTab={activeNavTab}
@@ -279,7 +298,7 @@ export const App: React.FC = () => {
         />
 
         {/* 2. Main Supervisor Dashboard Canvas */}
-        <div className="flex-1 flex flex-col min-w-0 px-2 sm:px-4 md:pr-6 py-2 sm:py-4 pb-24 md:pb-8">
+        <div className="flex-1 flex flex-col min-w-0 px-3 sm:px-5 md:pr-6 py-2 sm:py-3 pb-24 md:pb-8">
         {/* Top Floating Pill Navigation Bar */}
         <TopPillNav
           activeTab={activeNavTab}
@@ -297,15 +316,10 @@ export const App: React.FC = () => {
           isAlertActive={isAlertActive}
         />
 
-        {/* Emergency Alert Banner (With Siren Pulse Glow) */}
-        <div className="px-1 mt-2">
-          <AlertBanner isActive={isAlertActive} />
-        </div>
-
         {/* Proactive Notification Permission Bar if in 'default' state */}
         {permission === 'default' && (
-          <div className="mx-1 mt-2 px-4 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm animate-fadeIn">
-            <div className="flex items-center gap-2">
+          <div className="mx-1 mt-2 px-4 py-3 rounded-2xl bg-zinc-100/90 dark:bg-zinc-800/80 border border-black/[0.04] dark:border-white/[0.06] text-zinc-700 dark:text-zinc-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-apple-sm animate-fadeIn">
+            <div className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
               <span>
                 <strong>Supervisión en Segundo Plano:</strong> Permite las notificaciones del navegador para recibir avisos de emergencia reales si estás en otra pestaña.
@@ -313,7 +327,7 @@ export const App: React.FC = () => {
             </div>
             <button
               onClick={requestPermission}
-              className="px-3.5 py-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition shadow-sm shrink-0"
+              className="px-3.5 py-1.5 rounded-full bg-zinc-900 hover:bg-black text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900 font-semibold text-xs transition-all shadow-sm shrink-0 active:scale-95"
             >
               Habilitar Notificaciones
             </button>
@@ -409,9 +423,9 @@ export const App: React.FC = () => {
             </div>
           ) : (
             /* PRIMARY UNIFIED DASHBOARD: Harmonious, Clean, Matched Row Heights */
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* ROW 1: Hero Score Card (7 cols) & 3D Procedural Driver Cabin (5 cols) - Matched 420px */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
                 <div className="lg:col-span-7 flex flex-col">
                   <div className="squircle-card p-5 md:p-6 shadow-card h-full flex flex-col justify-between min-h-[420px]">
                     <HeroScoreCard
@@ -442,7 +456,7 @@ export const App: React.FC = () => {
                 onTriggerTestAlarm={simulateAlertaInmediata}
               />
 
-              {/* ROW 2: Hours in Route & Full-Width Spline Attention Curve */}
+              {/* ROW 3: Hours in Route & Full-Width Spline Attention Curve */}
               <RightSideWidgets
                 sessionTimeFormatted={sessionTimeFormatted}
                 filteredStatus={filteredStatus}
@@ -451,8 +465,8 @@ export const App: React.FC = () => {
                 alertCount={alertCount}
               />
 
-              {/* ROW 3: Telemetry Oscilloscope (6 cols) & Cabin Simulator (6 cols) - Matched 210px */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              {/* ROW 4: Telemetry Oscilloscope (6 cols) & Cabin Simulator (6 cols) - Matched 240px */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
                 <div className="lg:col-span-6">
                   <TelemetryChart
                     dataPoints={dataPoints}
@@ -469,8 +483,8 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* ROW 4: Forensic Anomaly History (6 cols) & Serial COM Monitor (6 cols) - Matched 260px */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              {/* ROW 5: Forensic Anomaly History (6 cols) & Serial COM Monitor (6 cols) - Matched 260px */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
                 <div className="lg:col-span-6">
                   <IncidentHistory
                     events={events}

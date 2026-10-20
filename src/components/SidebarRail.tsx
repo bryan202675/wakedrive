@@ -5,10 +5,7 @@ import {
   Cpu,
   Sliders,
   FileSpreadsheet,
-  AlertOctagon,
-  Headphones,
-  Truck,
-  ShieldCheck
+  Truck
 } from 'lucide-react';
 
 interface SidebarRailProps {
@@ -19,109 +16,107 @@ interface SidebarRailProps {
 
 export const SidebarRail: React.FC<SidebarRailProps> = ({ activeTab, onSelectTab, isAlertActive }) => {
   return (
-    <aside className="hidden md:flex w-16 md:w-20 py-4 flex-col items-center justify-between h-full select-none shrink-0 z-20">
-      {/* Top: WakeDrive Admin Logo */}
-      <div className="flex flex-col items-center gap-4">
-        {/* Curved Stylized Logo */}
+    <aside className="hidden md:flex w-16 py-4 flex-col items-center justify-between h-full select-none shrink-0 z-20">
+      {/* Top: Brand Symbol */}
+      <div className="flex flex-col items-center gap-3">
         <div
           onClick={() => onSelectTab('dashboard')}
-          className="w-11 h-11 rounded-2xl bg-white dark:bg-zinc-800 shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center cursor-pointer transition hover:scale-105 group"
+          className="w-10 h-10 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
           title="WakeDrive Fleet Control"
         >
           <div className="relative flex items-center justify-center">
-            <Truck className="w-5 h-5 text-black dark:text-white group-hover:text-cyan-500 transition-colors" />
+            <Truck className="w-4 h-4" strokeWidth={1.75} />
             {isAlertActive && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
             )}
           </div>
         </div>
 
-        {/* Supervisor Status Indicator */}
-        <div className="px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/5 text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest">
-          ADMIN
-        </div>
+        <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+          v2.0
+        </span>
       </div>
 
-      {/* Middle: Admin Navigation Icons */}
-      <div className="flex flex-col items-center gap-2.5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md p-2 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm">
+      {/* Middle: Apple Minimalist Sidebar Navigation */}
+      <nav aria-label="Navegación lateral de administración" className="flex flex-col items-center gap-2 bg-zinc-100/70 dark:bg-zinc-900/70 backdrop-blur-md p-1.5 rounded-2xl border border-black/[0.04] dark:border-white/[0.06]">
         {/* 1. Dashboard Principal */}
         <button
           onClick={() => onSelectTab('dashboard')}
-          aria-label="Panel General de Monitoreo"
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+          aria-label="Panel General"
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all focus:outline-none ${
             activeTab === 'dashboard'
-              ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-md ring-2 ring-cyan-500/30'
-              : 'text-slate-600 dark:text-zinc-300 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
+              ? 'bg-white text-zinc-900 dark:bg-zinc-700 dark:text-white shadow-sm font-semibold'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
           }`}
-          title="Panel General de Monitoreo"
+          title="Panel General"
         >
-          <LayoutDashboard className="w-5 h-5" />
+          <LayoutDashboard className="w-4 h-4" strokeWidth={1.75} />
         </button>
 
         {/* 2. Inspector 3D y Biometría */}
         <button
           onClick={() => onSelectTab('3d')}
-          aria-label="Telemetría Biometría 3D"
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+          aria-label="Biometría 3D"
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all focus:outline-none ${
             activeTab === '3d'
-              ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-md ring-2 ring-cyan-500/30'
-              : 'text-slate-600 dark:text-zinc-300 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
+              ? 'bg-white text-zinc-900 dark:bg-zinc-700 dark:text-white shadow-sm font-semibold'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
           }`}
-          title="Telemetría Biometría 3D"
+          title="Biometría 3D"
         >
-          <Eye className="w-5 h-5" />
+          <Eye className="w-4 h-4" strokeWidth={1.75} />
         </button>
 
         {/* 3. Hardware Arduino COM */}
         <button
           onClick={() => onSelectTab('hardware')}
-          aria-label="Telemetría Arduino (Pines 10, 8, 9)"
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+          aria-label="Hardware"
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all focus:outline-none ${
             activeTab === 'hardware'
-              ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-md ring-2 ring-cyan-500/30'
-              : 'text-slate-600 dark:text-zinc-300 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
+              ? 'bg-white text-zinc-900 dark:bg-zinc-700 dark:text-white shadow-sm font-semibold'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
           }`}
-          title="Telemetría Arduino (Pines 10, 8, 9)"
+          title="Telemetría de Hardware"
         >
-          <Cpu className="w-5 h-5" />
+          <Cpu className="w-4 h-4" strokeWidth={1.75} />
         </button>
 
         {/* 4. Banco de Simulación */}
         <button
           onClick={() => onSelectTab('simulation')}
-          aria-label="Laboratorio de Pruebas de Anomalías"
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+          aria-label="Simulador"
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all focus:outline-none ${
             activeTab === 'simulation'
-              ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-md ring-2 ring-cyan-500/30'
-              : 'text-slate-600 dark:text-zinc-300 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
+              ? 'bg-white text-zinc-900 dark:bg-zinc-700 dark:text-white shadow-sm font-semibold'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
           }`}
-          title="Laboratorio de Pruebas de Anomalías"
+          title="Banco de Simulación"
         >
-          <Sliders className="w-5 h-5" />
+          <Sliders className="w-4 h-4" strokeWidth={1.75} />
         </button>
 
         {/* 5. Bitácora Forense */}
         <button
           onClick={() => onSelectTab('history')}
-          aria-label="Bitácora Forense de Somnolencia"
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+          aria-label="Bitácora Forense"
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all focus:outline-none ${
             activeTab === 'history'
-              ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-md ring-2 ring-cyan-500/30'
-              : 'text-slate-600 dark:text-zinc-300 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
+              ? 'bg-white text-zinc-900 dark:bg-zinc-700 dark:text-white shadow-sm font-semibold'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
           }`}
-          title="Bitácora Forense de Somnolencia"
+          title="Bitácora Forense"
         >
-          <FileSpreadsheet className="w-5 h-5" />
+          <FileSpreadsheet className="w-4 h-4" strokeWidth={1.75} />
         </button>
-      </div>
+      </nav>
 
-      {/* Bottom: Admin Supervisor Avatar */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative group cursor-pointer" title="Supervisor de Flota: Bryan (Activo)">
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-900 dark:border-white shadow-sm transition-transform group-hover:scale-105 bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-            ADM
-          </div>
-          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900"></span>
+      {/* Bottom: Discreet User Indicator */}
+      <div className="flex flex-col items-center">
+        <div
+          className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center text-xs font-semibold cursor-pointer"
+          title="Supervisor de Flota: Bryan (Activo)"
+        >
+          BR
         </div>
       </div>
     </aside>
